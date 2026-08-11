@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0d0b" />
+  <meta name="description" content="FIELD — a Leeds-first food freshness, provenance and basket-convergence selector." />
+
+  <meta name="application-name" content="FIELD" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="48x48" href="./icons/favicon-48.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+  <title>FIELD — Leeds Freshness Network</title>
+  <style>
+    :root {
+      --bg: #080b09;
+      --panel: #101512;
+      --panel-2: #151b17;
+      --panel-3: #1b221d;
+      --line: rgba(229, 239, 230, .12);
+      --line-strong: rgba(229, 239, 230, .23);
+      --text: #eef3ee;
+      --muted: #8e9b91;
+      --muted-2: #667269;
+      --green: #b9f879;
+      --green-2: #74c744;
+      --tomato: #ff6a50;
+      --egg: #f2d89b;
+      --meat: #d98785;
+      --fish: #79c8d7;
+      --bread: #d9af73;
+      --milk: #d8e8f4;
+      --warning: #ffc76d;
+      --danger: #ff7c72;
+      --shadow: 0 18px 60px rgba(0,0,0,.35);
+      --radius: 22px;
+      --safe-bottom: max(18px, env(safe-area-inset-bottom));
+      --accent: var(--tomato);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 76% -10%, rgba(185,248,121,.10), transparent 35%),
+        radial-gradient(circle at -10% 30%, rgba(255,106,80,.09), transparent 34%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: -.012em;
+      overflow-x: hidden;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+    a { color: inherit; }
+    .hidden { display: none !important; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+    .noise {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .15;
+      z-index: 20;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 72px;
+      padding: 12px clamp(16px, 3vw, 36px);
+      border-bottom: 1px solid var(--line);
+      background: rgba(8,11,9,.82);
+      backdrop-filter: blur(18px) saturate(1.2);
+    }
+
+    .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+    .brand-mark {
+      width: 38px; height:38px; border-radius:12px;
+      display:grid; place-items:center;
+      background: var(--green);
+      color:#0a0d0b;
+      font-weight:900;
+      letter-spacing:-.08em;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset, 0 0 28px rgba(185,248,121,.12);
+    }
+    .brand-name { font-weight:800; letter-spacing:.16em; font-size:13px; }
+    .brand-sub { color:var(--muted); font-size:11px; margin-top:2px; white-space:nowrap; }
+
+    .top-actions { display:flex; align-items:center; gap:8px; min-width:0; }
+    .ghost-btn, .solid-btn, .icon-btn {
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.025);
+      border-radius:999px;
+      padding:10px 13px;
+      cursor:pointer;
+      transition:.2s ease;
+    }
+    .ghost-btn:hover, .icon-btn:hover { border-color:var(--line-strong); background:rgba(255,255,255,.055); transform:translateY(-1px); }
+    .solid-btn { background:var(--green); color:#0b0e0c; border-color:transparent; font-weight:800; }
+    .solid-btn:hover { transform:translateY(-1px); filter:brightness(1.05); }
+    .location-btn { display:flex; align-items:center; gap:8px; max-width:230px; }
+    .location-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .live-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 5px rgba(185,248,121,.08); }
+
+    .shell {
+      width:min(1580px, 100%);
+      margin:0 auto;
+      padding: clamp(18px, 3vw, 38px);
+      display:grid;
+      grid-template-columns: minmax(220px, 278px) minmax(0, 1fr) minmax(280px, 340px);
+      gap:18px;
+      align-items:start;
+    }
+
+    .panel {
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(20,27,23,.91), rgba(13,18,15,.92));
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .left-rail, .right-rail { position:sticky; top:91px; }
+    .rail-inner { padding:18px; }
+    .eyebrow { color:var(--muted); font-size:10px; letter-spacing:.18em; text-transform:uppercase; font-weight:800; }
+    .rail-title { margin:8px 0 3px; font-size:20px; letter-spacing:-.035em; }
+    .rail-copy { color:var(--muted); line-height:1.5; font-size:13px; margin:0; }
+
+    .food-list { display:grid; gap:7px; margin-top:18px; }
+    .food-btn {
+      width:100%; border:1px solid transparent; background:transparent; color:var(--muted);
+      display:grid; grid-template-columns:34px 1fr auto; gap:10px; align-items:center;
+      padding:9px; border-radius:14px; cursor:pointer; text-align:left; transition:.18s ease;
+    }
+    .food-btn:hover { background:rgba(255,255,255,.035); color:var(--text); }
+    .food-btn.active { background:rgba(255,255,255,.055); border-color:var(--line); color:var(--text); }
+    .food-icon { width:34px; height:34px; border-radius:11px; display:grid; place-items:center; background:rgba(255,255,255,.045); font-size:17px; }
+    .food-btn.active .food-icon { background:color-mix(in srgb, var(--accent) 18%, transparent); }
+    .food-name { font-weight:700; font-size:13px; }
+    .food-season { font-size:10px; color:var(--muted-2); margin-top:2px; }
+    .food-score { font-size:11px; color:var(--green); }
+
+    .rail-divider { height:1px; background:var(--line); margin:18px 0; }
+    .preference-stack { display:grid; gap:7px; margin-top:12px; }
+    .pref-btn {
+      width:100%; display:flex; justify-content:space-between; align-items:center; gap:12px;
+      border:1px solid var(--line); background:rgba(255,255,255,.018); border-radius:13px;
+      padding:11px 12px; cursor:pointer; color:var(--muted); transition:.18s ease;
+    }
+    .pref-btn.active { color:var(--text); background:rgba(185,248,121,.08); border-color:rgba(185,248,121,.28); }
+    .pref-meta { font-size:10px; color:var(--muted-2); }
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
+    .toggle-label strong { display:block; font-size:12px; }
+    .toggle-label span { display:block; font-size:10px; color:var(--muted); margin-top:2px; }
+    .switch { width:45px; height:26px; border-radius:999px; background:#2a312c; border:1px solid var(--line); padding:3px; cursor:pointer; transition:.2s; }
+    .switch::after { content:""; display:block; width:18px; height:18px; border-radius:50%; background:#879087; transition:.2s; }
+    .switch.on { background:rgba(185,248,121,.2); border-color:rgba(185,248,121,.3); }
+    .switch.on::after { transform:translateX(18px); background:var(--green); }
+
+    .main { min-width:0; display:grid; gap:18px; }
+    .hero { padding: clamp(20px, 4vw, 38px); position:relative; isolation:isolate; }
+    .hero::before {
+      content:""; position:absolute; inset:0; z-index:-2;
+      background:
+        radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 38%),
+        linear-gradient(135deg, rgba(255,255,255,.035), transparent 48%);
+    }
+    .hero::after {
+      content:""; position:absolute; width:220px; height:220px; right:-55px; top:-80px; border-radius:50%;
+      border:1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+      box-shadow: 0 0 0 40px color-mix(in srgb, var(--accent) 4%, transparent), 0 0 0 80px color-mix(in srgb, var(--accent) 2%, transparent);
+      z-index:-1;
+    }
+    .hero-top { display:flex; justify-content:space-between; gap:16px; align-items:start; }
+    .hero h1 { font-size:clamp(34px, 5.3vw, 72px); line-height:.94; letter-spacing:-.065em; margin:15px 0 18px; max-width:900px; }
+    .hero h1 span { color:var(--accent); }
+    .hero-copy { max-width:690px; color:#b3beb5; line-height:1.55; font-size:clamp(14px, 1.4vw, 17px); margin:0; }
+    .time-chip { white-space:nowrap; font-size:11px; color:var(--muted); border:1px solid var(--line); padding:8px 10px; border-radius:999px; background:rgba(0,0,0,.15); }
+
+    .search-wrap { margin-top:26px; display:grid; grid-template-columns:1fr auto; gap:9px; }
+    .search-box {
+      display:flex; align-items:center; gap:10px; min-width:0;
+      border:1px solid var(--line-strong); background:rgba(4,7,5,.52); border-radius:16px; padding:13px 15px;
+    }
+    .search-box input { width:100%; min-width:0; border:0; outline:0; background:transparent; color:var(--text); font-size:15px; }
+    .search-box input::placeholder { color:#69746b; }
+    .search-submit { border-radius:16px; padding:0 18px; }
+    .suggestions { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+    .suggestion { border:0; background:transparent; color:var(--muted); font-size:11px; cursor:pointer; padding:3px 0; }
+    .suggestion:hover { color:var(--text); }
+
+    .metric-row { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:27px; }
+    .metric { border-top:1px solid var(--line); padding-top:14px; min-width:0; }
+    .metric-value { font-size:20px; font-weight:800; letter-spacing:-.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .metric-label { font-size:10px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.1em; }
+
+    .section-head { display:flex; align-items:end; justify-content:space-between; gap:16px; padding:20px 22px 0; }
+    .section-head h2 { margin:7px 0 0; font-size:24px; letter-spacing:-.04em; }
+    .section-head p { color:var(--muted); margin:5px 0 0; font-size:12px; }
+    .segmented { display:flex; gap:3px; padding:3px; background:rgba(0,0,0,.22); border:1px solid var(--line); border-radius:999px; }
+    .segmented button { border:0; background:transparent; color:var(--muted); padding:7px 10px; border-radius:999px; font-size:10px; cursor:pointer; }
+    .segmented button.active { color:var(--text); background:rgba(255,255,255,.08); }
+
+    .map-wrap { padding:16px 18px 20px; }
+    .field-map {
+      position:relative; min-height:420px; border-radius:18px; overflow:hidden; border:1px solid var(--line);
+      background:
+        radial-gradient(circle at 72% 56%, rgba(185,248,121,.08), transparent 24%),
+        linear-gradient(125deg, rgba(255,255,255,.025), transparent 45%),
+        #0b100d;
+    }
+    .map-svg { position:absolute; inset:0; width:100%; height:100%; opacity:.83; }
+    .map-grid { position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size:52px 52px; mask-image:linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent); }
+    .map-label { position:absolute; color:#59645c; font-size:9px; letter-spacing:.1em; text-transform:uppercase; pointer-events:none; }
+    .map-home-ring { position:absolute; border:1px solid rgba(185,248,121,.12); border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; }
+    .map-home { position:absolute; width:14px; height:14px; border-radius:50%; background:var(--green); transform:translate(-50%,-50%); box-shadow:0 0 0 7px rgba(185,248,121,.12),0 0 30px rgba(185,248,121,.4); z-index:4; }
+    .map-home::after { content:"YOU"; position:absolute; left:18px; top:-2px; color:var(--green); font-size:9px; font-weight:900; letter-spacing:.12em; }
+    .map-pin {
+      position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; cursor:pointer; z-index:3; text-align:left;
+    }
+    .pin-core { width:30px; height:30px; border-radius:11px 11px 11px 3px; transform:rotate(-45deg); background:#2d3830; border:1px solid rgba(255,255,255,.16); display:grid; place-items:center; transition:.2s; box-shadow:0 9px 18px rgba(0,0,0,.32); }
+    .pin-core span { transform:rotate(45deg); font-size:11px; font-weight:900; }
+    .map-pin:hover .pin-core, .map-pin.active .pin-core { background:var(--pin, var(--green)); color:#0b0e0c; transform:rotate(-45deg) scale(1.12); }
+    .pin-label { position:absolute; left:20px; top:-17px; min-width:115px; padding:7px 8px; border-radius:9px; background:rgba(8,11,9,.86); border:1px solid var(--line); backdrop-filter:blur(8px); opacity:0; transform:translateY(5px); pointer-events:none; transition:.2s; }
+    .map-pin:hover .pin-label, .map-pin.active .pin-label { opacity:1; transform:translateY(0); }
+    .pin-label strong { display:block; font-size:10px; }
+    .pin-label small { display:block; color:var(--muted); margin-top:2px; font-size:8px; }
+    .map-legend { position:absolute; left:12px; bottom:12px; right:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; z-index:5; }
+    .legend-box { display:flex; flex-wrap:wrap; gap:8px; background:rgba(7,10,8,.78); border:1px solid var(--line); border-radius:11px; padding:8px 10px; backdrop-filter:blur(10px); }
+    .legend-item { display:flex; align-items:center; gap:5px; font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+    .legend-dot { width:7px; height:7px; border-radius:50%; background:var(--dot); }
+    .map-note { color:var(--muted); font-size:8px; background:rgba(7,10,8,.78); border:1px solid var(--line); border-radius:11px; padding:8px 10px; backdrop-filter:blur(10px); }
+
+    .best-strip { display:grid; grid-template-columns:1.2fr .8fr; gap:10px; padding:0 18px 18px; }
+    .best-card { border:1px solid var(--line); border-radius:16px; padding:15px; background:rgba(255,255,255,.025); min-width:0; }
+    .best-card.primary { background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 13%, transparent), rgba(255,255,255,.02)); border-color:color-mix(in srgb, var(--accent) 28%, var(--line)); }
+    .best-kicker { color:var(--muted); font-size:9px; letter-spacing:.13em; text-transform:uppercase; }
+    .best-title { margin:7px 0 2px; font-size:16px; font-weight:800; letter-spacing:-.025em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .best-meta { color:var(--muted); font-size:10px; line-height:1.4; }
+    .best-score { font-size:34px; font-weight:900; letter-spacing:-.06em; color:var(--accent); margin-top:10px; }
+    .best-score small { font-size:10px; color:var(--muted); letter-spacing:.05em; font-weight:700; }
+
+    .offers-panel { padding-bottom:8px; }
+    .offers { padding:14px 14px 8px; display:grid; gap:9px; }
+    .offer-card {
+      display:grid; grid-template-columns:62px minmax(0, 1fr) auto; gap:13px; align-items:center;
+      border:1px solid var(--line); border-radius:17px; padding:12px; background:rgba(255,255,255,.018); cursor:pointer; transition:.2s ease;
+    }
+    .offer-card:hover, .offer-card.active { transform:translateY(-2px); border-color:color-mix(in srgb, var(--accent) 36%, var(--line)); background:color-mix(in srgb, var(--accent) 5%, rgba(255,255,255,.02)); }
+    .offer-rank { width:62px; min-height:62px; border-radius:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(255,255,255,.04); }
+    .offer-rank strong { font-size:23px; letter-spacing:-.05em; color:var(--accent); }
+    .offer-rank span { font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
+    .offer-name { font-size:14px; font-weight:800; letter-spacing:-.02em; }
+    .offer-place { color:var(--muted); font-size:10px; margin-top:3px; }
+    .offer-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+    .tag { border:1px solid var(--line); color:#a9b4ab; background:rgba(255,255,255,.025); border-radius:999px; padding:4px 7px; font-size:8px; white-space:nowrap; }
+    .tag.strong { color:var(--text); border-color:color-mix(in srgb, var(--accent) 28%, var(--line)); background:color-mix(in srgb, var(--accent) 8%, transparent); }
+    .offer-side { text-align:right; min-width:78px; }
+    .offer-price { font-weight:800; font-size:13px; }
+    .offer-distance { color:var(--muted); font-size:9px; margin-top:3px; }
+    .confidence { margin-top:8px; display:flex; justify-content:flex-end; align-items:center; gap:5px; color:var(--muted); font-size:8px; }
+    .confidence-bar { width:35px; height:3px; border-radius:999px; background:#2b332d; overflow:hidden; }
+    .confidence-bar i { display:block; height:100%; background:var(--green); }
+
+    .disclosure { margin:0 14px 12px; border:1px dashed var(--line); border-radius:14px; padding:11px 12px; color:var(--muted); font-size:10px; line-height:1.5; }
+    .disclosure strong { color:var(--text); }
+
+    .right-rail .rail-inner { padding:16px; }
+    .basket-list { display:grid; gap:6px; margin-top:14px; }
+    .basket-row { display:grid; grid-template-columns:30px minmax(0, 1fr) auto; gap:9px; align-items:center; padding:8px; border-radius:12px; background:rgba(255,255,255,.023); border:1px solid transparent; }
+    .basket-row:hover { border-color:var(--line); }
+    .basket-ico { width:30px; height:30px; display:grid; place-items:center; border-radius:9px; background:rgba(255,255,255,.04); }
+    .basket-food { font-size:11px; font-weight:700; }
+    .basket-source { font-size:8px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .basket-score { font-size:10px; color:var(--green); }
+    .basket-remove { border:0; background:transparent; color:var(--muted-2); cursor:pointer; padding:4px; }
+
+    .route-summary { margin-top:14px; border:1px solid rgba(185,248,121,.22); background:rgba(185,248,121,.06); border-radius:15px; padding:13px; }
+    .route-summary-top { display:flex; justify-content:space-between; align-items:start; gap:12px; }
+    .route-summary h3 { margin:5px 0 0; font-size:14px; }
+    .route-score { color:var(--green); font-weight:900; font-size:20px; }
+    .route-stops { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+    .route-stop { font-size:8px; border:1px solid rgba(185,248,121,.22); border-radius:999px; padding:4px 7px; color:#cbe8b2; }
+    .route-detail { color:var(--muted); font-size:9px; line-height:1.45; margin-top:9px; }
+    .route-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px; }
+    .route-actions button { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:8px; cursor:pointer; font-size:9px; }
+    .route-actions button:hover { background:rgba(255,255,255,.07); }
+
+    .ledger { display:grid; gap:8px; margin-top:12px; }
+    .ledger-row { display:grid; grid-template-columns:76px 1fr 28px; gap:7px; align-items:center; }
+    .ledger-label { font-size:9px; color:var(--muted); }
+    .ledger-track { height:5px; border-radius:999px; background:#263029; overflow:hidden; }
+    .ledger-track i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg, var(--green-2), var(--green)); }
+    .ledger-value { font-size:9px; text-align:right; }
+
+    .agent-card { margin-top:14px; border:1px solid var(--line); border-radius:15px; overflow:hidden; background:#090d0a; }
+    .agent-head { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px 11px; border-bottom:1px solid var(--line); }
+    .agent-head strong { font-size:10px; letter-spacing:.08em; }
+    .agent-actions { display:flex; gap:5px; }
+    .agent-actions button { border:1px solid var(--line); background:transparent; color:var(--muted); padding:5px 7px; border-radius:7px; cursor:pointer; font-size:8px; }
+    .agent-code { max-height:154px; overflow:auto; padding:11px; margin:0; color:#a9c7ad; font-size:8px; line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+
+    .source-list { display:grid; gap:7px; margin-top:11px; }
+    .source-link { display:flex; justify-content:space-between; align-items:center; gap:9px; color:var(--muted); text-decoration:none; font-size:9px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+    .source-link:hover { color:var(--text); }
+
+    .route-drawer, .details-drawer {
+      position:fixed; inset:auto 0 0 0; z-index:40; transform:translateY(105%); transition:.3s cubic-bezier(.2,.8,.2,1);
+      background:rgba(12,16,13,.97); border-top:1px solid var(--line-strong); backdrop-filter:blur(20px); box-shadow:0 -24px 80px rgba(0,0,0,.52);
+      max-height:min(82vh, 760px); overflow:auto; padding:18px clamp(16px, 4vw, 38px) var(--safe-bottom);
+    }
+    .route-drawer.open, .details-drawer.open { transform:translateY(0); }
+    .drawer-grip { width:46px; height:4px; border-radius:999px; background:#3b443d; margin:0 auto 14px; }
+    .drawer-head { display:flex; justify-content:space-between; align-items:start; gap:12px; max-width:1100px; margin:0 auto; }
+    .drawer-head h3 { margin:6px 0 0; font-size:26px; letter-spacing:-.04em; }
+    .close-btn { width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:rgba(255,255,255,.03); cursor:pointer; }
+    .route-options { max-width:1100px; margin:18px auto 0; display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+    .route-option { border:1px solid var(--line); border-radius:17px; padding:15px; background:rgba(255,255,255,.02); }
+    .route-option.best { border-color:rgba(185,248,121,.34); background:rgba(185,248,121,.055); }
+    .route-option h4 { margin:7px 0 4px; font-size:15px; }
+    .route-option p { color:var(--muted); font-size:10px; line-height:1.5; min-height:45px; }
+    .route-option .route-score { margin-top:12px; }
+
+    .details-content { max-width:920px; margin:18px auto 0; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .detail-card { border:1px solid var(--line); border-radius:16px; padding:15px; background:rgba(255,255,255,.02); }
+    .detail-card h4 { margin:0 0 12px; font-size:13px; }
+    .fact-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .fact { border-top:1px solid var(--line); padding-top:9px; }
+    .fact b { display:block; font-size:13px; }
+    .fact span { display:block; color:var(--muted); font-size:8px; margin-top:3px; text-transform:uppercase; letter-spacing:.08em; }
+
+    .toast { position:fixed; left:50%; bottom:calc(var(--safe-bottom) + 14px); z-index:70; transform:translate(-50%, 30px); opacity:0; background:#edf4ee; color:#0b0e0c; border-radius:999px; padding:10px 14px; font-size:11px; font-weight:800; transition:.25s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+
+    .mobile-nav { display:none; }
+
+    @media (max-width: 1160px) {
+      .shell { grid-template-columns:220px minmax(0, 1fr); }
+      .right-rail { position:relative; top:auto; grid-column:1 / -1; }
+      .right-rail .rail-inner { display:grid; grid-template-columns:1.15fr .85fr; gap:18px; }
+      .right-rail .rail-section:nth-child(n+3) { grid-column:span 1; }
+    }
+
+    @media (max-width: 820px) {
+      body { padding-bottom:74px; }
+      .topbar { min-height:62px; padding:10px 14px; }
+      .brand-mark { width:34px; height:34px; }
+      .brand-sub { display:none; }
+      .desktop-only { display:none !important; }
+      .shell { display:block; padding:13px; }
+      .left-rail { display:none; }
+      .main { gap:12px; }
+      .right-rail { margin-top:12px; }
+      .right-rail .rail-inner { display:block; }
+      .right-rail .rail-section + .rail-section { margin-top:18px; padding-top:18px; border-top:1px solid var(--line); }
+      .hero { padding:22px 18px; border-radius:20px; }
+      .hero-top { display:block; }
+      .time-chip { display:inline-flex; margin-bottom:10px; }
+      .hero h1 { font-size:44px; max-width:600px; margin-top:10px; }
+      .hero-copy { font-size:13px; }
+      .search-wrap { grid-template-columns:1fr; }
+      .search-submit { min-height:46px; }
+      .metric-row { grid-template-columns:1fr 1fr; row-gap:15px; }
+      .section-head { align-items:start; padding:17px 16px 0; }
+      .section-head h2 { font-size:20px; }
+      .section-head p { max-width:250px; }
+      .field-map { min-height:350px; }
+      .best-strip { grid-template-columns:1fr; }
+      .offer-card { grid-template-columns:52px minmax(0, 1fr); }
+      .offer-rank { width:52px; min-height:58px; }
+      .offer-side { grid-column:2; display:flex; justify-content:space-between; align-items:center; text-align:left; }
+      .confidence { margin-top:0; }
+      .route-options { grid-template-columns:1fr; }
+      .details-content { grid-template-columns:1fr; }
+      .mobile-nav {
+        position:fixed; display:grid; grid-template-columns:repeat(4, 1fr); z-index:30; left:10px; right:10px; bottom:10px;
+        padding:5px; border:1px solid var(--line-strong); background:rgba(10,14,11,.92); border-radius:18px; backdrop-filter:blur(18px); box-shadow:0 14px 48px rgba(0,0,0,.45);
+      }
+      .mobile-nav button { border:0; background:transparent; color:var(--muted); padding:9px 4px; border-radius:13px; font-size:9px; cursor:pointer; }
+      .mobile-nav button.active { color:#0b0e0c; background:var(--green); font-weight:800; }
+    }
+
+    @media (max-width: 500px) {
+      .location-btn { max-width:130px; padding:9px 10px; }
+      .brand-name { font-size:12px; }
+      .hero h1 { font-size:38px; }
+      .map-wrap { padding:12px; }
+      .field-map { min-height:330px; }
+      .map-note { display:none; }
+      .legend-box { max-width:100%; overflow:auto; flex-wrap:nowrap; }
+      .section-head { display:block; }
+      .segmented { display:inline-flex; margin-top:12px; }
+      .best-strip { padding:0 12px 12px; }
+      .offers { padding:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">F·</div>
+      <div>
+        <div class="brand-name">FIELD / 01</div>
+        <div class="brand-sub">Leeds local food intelligence</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="ghost-btn location-btn" id="locateBtn" aria-label="Use my current location">
+        <span class="live-dot"></span>
+        <span class="location-text" id="locationText">Garforth, Leeds</span>
+      </button>
+      <button class="ghost-btn desktop-only" id="agentTopBtn">Agent port</button>
+      <button class="solid-btn desktop-only" id="addBasketTop">Add to basket</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="left-rail panel" aria-label="Food and preference controls">
+      <div class="rail-inner">
+        <div class="eyebrow">Choose by freshness</div>
+        <h2 class="rail-title">What are you buying?</h2>
+        <p class="rail-copy">The thing first. Then the best route through the local food network.</p>
+        <div class="food-list" id="foodList"></div>
+
+        <div class="rail-divider"></div>
+        <div class="eyebrow">Decision law</div>
+        <div class="preference-stack" id="preferenceStack">
+          <button class="pref-btn active" data-mode="fresh"><span>Freshest possible</span><span class="pref-meta">quality</span></button>
+          <button class="pref-btn" data-mode="oneTrip"><span>Fewest trips</span><span class="pref-meta">convergence</span></button>
+          <button class="pref-btn" data-mode="value"><span>Best value</span><span class="pref-meta">price</span></button>
+          <button class="pref-btn" data-mode="local"><span>Keep value local</span><span class="pref-meta">resilience</span></button>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label"><strong>Abundance mode</strong><span>Price stops deciding</span></div>
+          <button class="switch" id="abundanceSwitch" aria-label="Toggle abundance mode" aria-pressed="false"></button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="hero panel" id="hero">
+        <div class="hero-top">
+          <div class="eyebrow">Leeds pilot · public evidence + lot signals</div>
+          <div class="time-chip mono" id="ukClock">UK — loading</div>
+        </div>
+        <h1>Find the <span id="heroFood">freshest tomatoes</span>, not merely the nearest shop.</h1>
+        <p class="hero-copy" id="heroCopy">FIELD resolves where food came from, how recently it moved, how many hands it passed through, and whether one exceptional ingredient is worth a separate journey.</p>
+
+        <div class="search-wrap">
+          <label class="search-box">
+            <span aria-hidden="true">⌕</span>
+            <span class="sr-only">Search food</span>
+            <input id="foodSearch" autocomplete="off" placeholder="Try tomatoes, potatoes, eggs, fish…" />
+          </label>
+          <button class="solid-btn search-submit" id="searchBtn">Resolve freshness</button>
+        </div>
+        <div class="suggestions" id="suggestions"></div>
+
+        <div class="metric-row">
+          <div class="metric"><div class="metric-value" id="metricBest">94 / 100</div><div class="metric-label">Best freshness fit</div></div>
+          <div class="metric"><div class="metric-value" id="metricDistance">7.8 mi</div><div class="metric-label">From you</div></div>
+          <div class="metric"><div class="metric-value" id="metricAge">Picked 8h ago</div><div class="metric-label">Freshness event</div></div>
+          <div class="metric"><div class="metric-value" id="metricConfidence">72%</div><div class="metric-label">Evidence confidence</div></div>
+        </div>
+      </section>
+
+      <section class="panel" id="mapSection">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">The invisible network, made visible</div>
+            <h2>Freshness field</h2>
+            <p>Distance from you is one variable. Distance from origin is another.</p>
+          </div>
+          <div class="segmented" aria-label="Map view">
+            <button class="active" data-map-view="offers">This food</button>
+            <button data-map-view="network">All food</button>
+          </div>
+        </div>
+        <div class="map-wrap">
+          <div class="field-map" id="fieldMap" role="img" aria-label="Diagrammatic map of the Leeds local food network">
+            <div class="map-grid"></div>
+            <svg class="map-svg" viewBox="0 0 900 500" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M-40 355 C130 335, 245 405, 400 356 S705 270, 950 320" fill="none" stroke="#223d43" stroke-width="14" opacity=".55"/>
+              <path d="M-40 355 C130 335, 245 405, 400 356 S705 270, 950 320" fill="none" stroke="#477782" stroke-width="2" opacity=".6"/>
+              <path d="M50 90 C250 165, 320 240, 560 230 S770 170, 930 80" fill="none" stroke="#323a34" stroke-width="2" stroke-dasharray="8 10"/>
+              <path d="M160 520 C220 365, 330 245, 450 165 S720 65, 870 -20" fill="none" stroke="#323a34" stroke-width="3"/>
+              <path d="M-20 180 C170 210, 315 175, 470 120 S730 100, 920 150" fill="none" stroke="#2a322c" stroke-width="2"/>
+              <circle cx="410" cy="250" r="118" fill="none" stroke="#252d27" stroke-width="1" stroke-dasharray="3 9"/>
+            </svg>
+            <div class="map-label" style="left:43%;top:47%">Leeds</div>
+            <div class="map-label" style="left:77%;top:61%">Garforth</div>
+            <div class="map-label" style="left:27%;top:74%">Pudsey</div>
+            <div class="map-label" style="left:59%;top:75%">Swillington</div>
+            <div id="mapRings"></div>
+            <div class="map-home" id="mapHome"></div>
+            <div id="mapPins"></div>
+            <div class="map-legend">
+              <div class="legend-box">
+                <span class="legend-item"><i class="legend-dot" style="--dot:var(--tomato)"></i>Produce</span>
+                <span class="legend-item"><i class="legend-dot" style="--dot:var(--egg)"></i>Eggs</span>
+                <span class="legend-item"><i class="legend-dot" style="--dot:var(--meat)"></i>Meat</span>
+                <span class="legend-item"><i class="legend-dot" style="--dot:var(--fish)"></i>Fish</span>
+              </div>
+              <div class="map-note">Diagrammatic · tap a node</div>
+            </div>
+          </div>
+        </div>
+        <div class="best-strip">
+          <div class="best-card primary">
+            <div class="best-kicker">Best match under your current law</div>
+            <div class="best-title" id="bestTitle">Meanwood Market Garden</div>
+            <div class="best-meta" id="bestMeta">Direct collection · 1 chain step · producer signal</div>
+            <div class="best-score"><span id="bestScore">94</span> <small>/ 100</small></div>
+          </div>
+          <div class="best-card">
+            <div class="best-kicker">Convergence counterweight</div>
+            <div class="best-title" id="convergenceTitle">Tesco Extra, Colton</div>
+            <div class="best-meta" id="convergenceMeta">Lower freshness · covers the whole basket</div>
+            <div class="best-score"><span id="convergenceScore">74</span> <small>/ 100</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel offers-panel" id="offersSection">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Ranked lots, not generic shops</div>
+            <h2 id="offersHeading">Tomatoes near Leeds</h2>
+            <p id="offersSubhead">A score without evidence confidence is not allowed to look precise.</p>
+          </div>
+          <button class="ghost-btn" id="addCurrent">+ Basket</button>
+        </div>
+        <div class="offers" id="offers"></div>
+        <div class="disclosure"><strong>Pilot truth:</strong> venue identities and declared sourcing claims are grounded in public sources; lot dates, prices and exact availability are sample signals used to demonstrate the operating model. FIELD visibly downgrades unverified data rather than hiding uncertainty.</div>
+      </section>
+    </main>
+
+    <aside class="right-rail panel" id="basketSection">
+      <div class="rail-inner">
+        <div class="rail-section">
+          <div class="eyebrow">Basket convergence</div>
+          <h2 class="rail-title">Fresh where it matters.</h2>
+          <p class="rail-copy">Let one place win the routine basket and split only for a meaningful quality jump.</p>
+          <div class="basket-list" id="basketList"></div>
+          <div class="route-summary" id="routeSummary"></div>
+        </div>
+
+        <div class="rail-section">
+          <div class="eyebrow">Why this ranks</div>
+          <div class="ledger" id="ledger"></div>
+        </div>
+
+        <div class="rail-section" id="agentSection">
+          <div class="eyebrow">Machine-readable surface</div>
+          <div class="agent-card">
+            <div class="agent-head">
+              <strong class="mono">FIELD_API / snapshot</strong>
+              <div class="agent-actions"><button id="copyJson">Copy JSON</button><button id="downloadJson">Export</button></div>
+            </div>
+            <pre class="agent-code mono" id="agentCode"></pre>
+          </div>
+        </div>
+
+        <div class="rail-section">
+          <div class="eyebrow">Evidence rails</div>
+          <div class="source-list" id="sourceList"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button class="active" data-mobile-target="hero">Find</button>
+    <button data-mobile-target="mapSection">Field</button>
+    <button data-mobile-target="offersSection">Lots</button>
+    <button data-mobile-target="basketSection">Basket</button>
+  </nav>
+
+  <section class="route-drawer" id="routeDrawer" aria-hidden="true">
+    <div class="drawer-grip"></div>
+    <div class="drawer-head">
+      <div><div class="eyebrow">Convergence alternatives</div><h3>Choose the shape of the trip.</h3></div>
+      <button class="close-btn" data-close-drawer="routeDrawer">×</button>
+    </div>
+    <div class="route-options" id="routeOptions"></div>
+  </section>
+
+  <section class="details-drawer" id="detailsDrawer" aria-hidden="true">
+    <div class="drawer-grip"></div>
+    <div class="drawer-head">
+      <div><div class="eyebrow">Lot evidence</div><h3 id="detailsTitle">Product detail</h3></div>
+      <button class="close-btn" data-close-drawer="detailsDrawer">×</button>
+    </div>
+    <div class="details-content" id="detailsContent"></div>
+  </section>
+
+  <div class="toast" id="toast">Copied</div>
+
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"SoftwareApplication",
+    "name":"FIELD",
+    "applicationCategory":"LifestyleApplication",
+    "operatingSystem":"Web",
+    "areaServed":"Leeds, West Yorkshire",
+    "description":"A local food freshness, provenance and basket-convergence selector."
+  }
+  </script>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const FOOD = {
+      tomatoes: {label:'Tomatoes', singular:'tomatoes', icon:'●', color:'#ff6a50', season:'Yorkshire peak now', copy:'Resolve harvest recency, production distance and cold-chain steps before comparing the convenience premium.'},
+      potatoes: {label:'Potatoes', singular:'potatoes', icon:'⬭', color:'#caa56a', season:'New + maincrop now', copy:'For potatoes, FIELD can see beyond the shelf: still in the ground, harvestable, freshly lifted, stored, packed or pooled. The best answer may be a field, a farm gate or the supermarket.'},
+      eggs: {label:'Eggs', singular:'eggs', icon:'◒', color:'#f2d89b', season:'Year-round', copy:'Laid date and flock proximity matter more than a broad “British” flag. Direct farm evidence earns the premium.'},
+      meat: {label:'Meat', singular:'meat', icon:'◆', color:'#d98785', season:'Method-led', copy:'Freshness is not simply youngest: breed, maturation, slaughter distance, whole-animal use and chain custody all matter.'},
+      fish: {label:'Fish', singular:'fish', icon:'≈', color:'#79c8d7', season:'Landings change daily', copy:'Hours since landing, vessel method and species suitability outrank generic “fresh fish” language.'},
+      bread: {label:'Bread', singular:'bread', icon:'◫', color:'#d9af73', season:'Baked daily', copy:'For bread, the clock starts at the oven. Fermentation and ingredient provenance remain separate quality signals.'},
+      milk: {label:'Milk', singular:'milk', icon:'▱', color:'#d8e8f4', season:'Delivery-led', copy:'Bottle date, collection radius and processing chain expose the difference between local delivery and national pooling.'}
+    };
+
+    const PLACES = {
+      meanwood: {name:'Meanwood Valley Urban Farm', short:'Meanwood Farm', lat:53.8288, lng:-1.5754, type:'producer', categories:['tomatoes'], icon:'V', source:'https://veg.mvuf.org.uk/', sourceLabel:'Meanwood veg box'},
+      leedsVeg: {name:'Leeds Veg Box', short:'Leeds Veg Box', lat:53.812, lng:-1.548, type:'delivery', categories:['tomatoes'], icon:'V', source:'https://www.leedsvegbox.co.uk/', sourceLabel:'Leeds Veg Box'},
+      peckfield: {name:'Peckfield Farm Produce', short:'Peckfield Farm', lat:53.7897, lng:-1.3355, type:'farmshop', categories:['potatoes'], icon:'P', source:'https://www.yell.com/biz/peckfield-farm-produce-leeds-1093473/', sourceLabel:'Peckfield Farm Produce listing'},
+      spilmans: {name:'Spilman Farming PYO', short:'Spilman PYO', lat:54.1715, lng:-1.3160, type:'producer', categories:['potatoes'], icon:'P', source:'https://www.spilmans.co.uk/', sourceLabel:'Spilman Farming'},
+      kirkgate: {name:'Leeds Kirkgate Market', short:'Kirkgate Market', lat:53.7979, lng:-1.5372, type:'market', categories:['tomatoes','potatoes','eggs','meat','fish','bread'], icon:'K', source:'https://markets.leeds.gov.uk/', sourceLabel:'Leeds Markets'},
+      willow: {name:'Willow Park Farm Shop', short:'Willow Park', lat:53.7905, lng:-1.3715, type:'producer', categories:['eggs','meat'], icon:'W', source:'https://www.themaindeal.co.uk/directory/willow-farm-shop/', sourceLabel:'Willow Park listing'},
+      swillington: {name:'Swillington Organic Farm', short:'Swillington Farm', lat:53.7595, lng:-1.4215, type:'producer', categories:['eggs','meat','tomatoes','potatoes'], icon:'S', source:'https://swillingtonorganicfarm.co.uk/', sourceLabel:'Swillington Organic'},
+      crag: {name:'Crag House Farm Shop', short:'Crag House', lat:53.8644, lng:-1.6067, type:'producer', categories:['eggs','meat','bread','milk'], icon:'C', source:'https://www.craghousefarm.com/farm-shop', sourceLabel:'Crag House Farm'},
+      tomlinsons: {name:'Tomlinsons Farm Shop', short:'Tomlinsons', lat:53.8015, lng:-1.6707, type:'farmshop', categories:['eggs','meat','tomatoes'], icon:'T', source:'https://www.tomlinsonfarmshop.co.uk/', sourceLabel:'Tomlinsons Farm Shop'},
+      tarbetts: {name:"Tarbett's Fishmongers", short:"Tarbett's", lat:53.7976, lng:-1.5364, type:'fishmonger', categories:['fish'], icon:'F', source:'https://tarbettsfishmongers.com/pages/leeds-market', sourceLabel:"Tarbett's Leeds Market"},
+      bethell: {name:"R. Bethell Fishmongers", short:'R. Bethell', lat:53.7975, lng:-1.5380, type:'fishmonger', categories:['fish'], icon:'F', source:'https://www.rbethell.com/', sourceLabel:'R. Bethell'},
+      breadcoop: {name:'Leeds Bread Co-op', short:'Bread Co-op', lat:53.8225, lng:-1.5655, type:'bakery', categories:['bread'], icon:'B', source:'https://www.leedsbread.coop/shop', sourceLabel:'Leeds Bread Co-op'},
+      elmfield: {name:'Elmfield Farm Dairies', short:'Elmfield delivery', lat:53.774, lng:-1.475, type:'delivery', categories:['milk'], icon:'M', source:'https://www.elmfieldfarmdairies.com/local-dairy-suppliers-leeds', sourceLabel:'Elmfield Farm Dairies'},
+      tesco: {name:'Tesco Extra, Colton', short:'Tesco Colton', lat:53.7902, lng:-1.4386, type:'supermarket', categories:['tomatoes','potatoes','eggs','meat','fish','bread','milk'], icon:'1', source:'https://www.tesco.com/', sourceLabel:'Tesco'},
+      sainsburys: {name:"Sainsbury's, Colton", short:"Sainsbury's", lat:53.7887, lng:-1.4435, type:'supermarket', categories:['tomatoes','potatoes','eggs','meat','fish','bread','milk'], icon:'1', source:'https://www.sainsburys.co.uk/', sourceLabel:"Sainsbury's"}
+    };
+
+    const OFFERS = [
+      {id:'tom-meanwood', food:'tomatoes', place:'meanwood', product:'Tunnel tomatoes', origin:'Meanwood, Leeds', originKm:0.1, chain:1, freshness:97, confidence:72, method:94, local:100, coverage:18, price:3.40, priceUnit:'500g', priceScore:58, event:'Picked 8h ago', eventShort:'Picked 8h', evidence:'Producer-direct seasonal signal', availability:'Weekly collection', tags:['grown on site','picked today','no wholesale leg'], notes:'Sample lot signal modelling a same-day tunnel harvest. Venue and veg-box operation are public; exact current tomato lot requires producer confirmation.'},
+      {id:'tom-leedsveg', food:'tomatoes', place:'leedsVeg', product:'Yorkshire summer tomatoes', origin:'Leeds-area partner farms', originKm:18, chain:2, freshness:90, confidence:61, method:82, local:88, coverage:30, price:3.10, priceUnit:'500g', priceScore:63, event:'Packed 18h ago', eventShort:'Packed 18h', evidence:'Seller-declared local summer sourcing', availability:'Delivery', tags:['organic','Leeds summer farms','delivered'], notes:'Public site says summer produce comes from Leeds farms. Exact grower and harvest timestamp are represented as a sample lot.'},
+      {id:'tom-kirkgate', food:'tomatoes', place:'kirkgate', product:'Yorkshire vine tomatoes', origin:'Yorkshire · seller declaration', originKm:42, chain:2, freshness:83, confidence:55, method:72, local:72, coverage:78, price:2.75, priceUnit:'500g', priceScore:70, event:'Market overnight', eventShort:'~30h chain', evidence:'Trader declaration pending lot scan', availability:'Market hours', tags:['independent trader','whole-basket market','ask the grower'], notes:'Kirkgate is a genuine fresh-food convergence point. Individual trader provenance varies and should be captured at lot level.'},
+      {id:'tom-tesco-uk', food:'tomatoes', place:'tesco', product:'British salad tomatoes', origin:'Lancashire · sample pack code', originKm:108, chain:4, freshness:70, confidence:76, method:61, local:39, coverage:100, price:1.85, priceUnit:'500g', priceScore:92, event:'Packed 54h ago', eventShort:'Packed 2.3d', evidence:'Pack-code grade evidence', availability:'Open today', tags:['one-stop','British','cold-chain'], notes:'Illustrative supermarket pack code. The interface rewards readable origin but marks down chain length and production distance.'},
+      {id:'tom-sains-nl', food:'tomatoes', place:'sainsburys', product:'Dutch vine tomatoes', origin:'Westland, Netherlands · sample lot', originKm:510, chain:4, freshness:66, confidence:79, method:68, local:12, coverage:100, price:2.00, priceUnit:'500g', priceScore:88, event:'Packed 42h ago', eventShort:'Packed 1.8d', evidence:'Pack-code grade evidence', availability:'Open today', tags:['one-stop','greenhouse','imported fast'], notes:'A farther origin can still beat a poorly handled local lot on clock time. FIELD keeps distance and freshness separate.'},
+
+      {id:'pot-swill', food:'potatoes', place:'swillington', product:'Garden Share potatoes', origin:'Swillington, Leeds', originKm:0.1, chain:1, freshness:95, confidence:81, method:94, local:100, coverage:44, price:2.60, priceUnit:'1.5kg equivalent', priceScore:82, event:'Farm-share harvest', eventShort:'Direct harvest', evidence:'Farm Garden Share lists potatoes', availability:'Weekly collection', tags:['grown on farm','direct harvest','share scheme'], notes:'Swillington Garden Growers publicly includes potatoes in example veg shares. Exact variety, lifting date and current-week inclusion require the live producer signal.'},
+      {id:'pot-peckfield', food:'potatoes', place:'peckfield', product:'Farm-gate potatoes', origin:'Micklefield, Leeds · grower unresolved', originKm:18, chain:2, freshness:88, confidence:66, method:76, local:84, coverage:48, price:3.99, priceUnit:'5kg sample', priceScore:91, event:'Farm-shop stock', eventShort:'Farm gate', evidence:'Long-running potato-led farm shop', availability:'Open today · check stock', tags:['farm gate','potato heritage','very close'], notes:'Peckfield Farm Produce began as a farm-gate potato seller and still sells fresh fruit and vegetables. FIELD deliberately caps the score until the current grower, variety and lifting date are resolved.'},
+      {id:'pot-spilman', food:'potatoes', place:'spilmans', product:'Pick-your-own potatoes', origin:'Church Farm, Sessay', originKm:0.1, chain:0, freshness:100, confidence:70, method:96, local:58, coverage:15, price:3.00, priceUnit:'field bag sample', priceScore:86, event:'Harvest window · verify', eventShort:'Lift yourself', evidence:'2026 PYO season signal', availability:'PYO · check live field status', tags:['IN THE GROUND','lift yourself','zero distribution'], notes:'A 2026 local PYO guide states Spilman potatoes were due ready from July. This is the canonical FIELD harvest state: the crop may still be in the ground, but live stock and opening status must be verified before travel.'},
+      {id:'pot-kirkgate', food:'potatoes', place:'kirkgate', product:'Yorkshire market potatoes', origin:'Yorkshire · trader to resolve', originKm:52, chain:2, freshness:84, confidence:57, method:73, local:74, coverage:78, price:2.50, priceUnit:'2.5kg sample', priceScore:88, event:'Market stock today', eventShort:'Trader lot', evidence:'Fresh-produce market signal', availability:'Market hours', tags:['market convergence','Yorkshire','ask when lifted'], notes:'Leeds farmers markets explicitly surface seasonal, soily potatoes; Kirkgate is modelled as the city-centre convergence node, but the exact trader and lot need capture.'},
+      {id:'pot-tesco', food:'potatoes', place:'tesco', product:'British white potatoes', origin:'UK pooled · sample pack', originKm:215, chain:4, freshness:73, confidence:79, method:61, local:27, coverage:100, price:1.65, priceUnit:'2.5kg', priceScore:99, event:'Packed 4d ago', eventShort:'Packed 4d', evidence:'Pack-code grade evidence', availability:'Open today', tags:['one-stop','British','stored crop'], notes:'Potatoes store well, so FIELD separates eating quality and storage condition from simple harvest age. Supermarket convergence may still dominate the routine basket.'},
+      {id:'pot-sains', food:'potatoes', place:'sainsburys', product:'British new potatoes', origin:'UK grower pool · sample pack', originKm:185, chain:4, freshness:79, confidence:76, method:66, local:31, coverage:100, price:2.10, priceUnit:'1kg', priceScore:90, event:'Packed 3d ago', eventShort:'Packed 3d', evidence:'Pack-code grade evidence', availability:'Open today', tags:['one-stop','new potatoes','grower unresolved'], notes:'A supermarket new-potato lot can be genuinely fresh; FIELD rewards the shorter clock while marking down pooled provenance and extra chain steps.'},
+
+      {id:'egg-willow', food:'eggs', place:'willow', product:'Farm eggs', origin:'Garforth, Leeds', originKm:0.1, chain:1, freshness:97, confidence:82, method:84, local:100, coverage:32, price:4.00, priceUnit:'12', priceScore:77, event:'Laid 1d ago', eventShort:'Laid 1d', evidence:'Farm-declared own flock', availability:'Open 7 days', tags:['own hens','direct farm','Garforth'], notes:'Public listings state eggs are laid by the farm’s own chickens, with free-range also available. Exact laid date is a sample lot.'},
+      {id:'egg-swill', food:'eggs', place:'swillington', product:'Organic Egg Club eggs', origin:'Swillington, Leeds', originKm:0.1, chain:1, freshness:98, confidence:93, method:98, local:100, coverage:44, price:4.40, priceUnit:'12 equivalent', priceScore:69, event:'Laid this week', eventShort:'Weekly collect', evidence:'Named farm-share scheme', availability:'Membership collection', tags:['organic','free range','visit the hens'], notes:'Swillington publicly offers weekly collection of freshly laid free-range organic eggs through its Egg Club.'},
+      {id:'egg-crag', food:'eggs', place:'crag', product:'Orchard free-range eggs', origin:'Crag House Farm, Leeds', originKm:0.1, chain:1, freshness:95, confidence:90, method:95, local:100, coverage:57, price:4.25, priceUnit:'12', priceScore:71, event:'Laid 1–2d ago', eventShort:'Laid ≤2d', evidence:'700 hens on site', availability:'Farm shop', tags:['700 hens','orchard roam','farm shop'], notes:'Crag House says its free-range eggs are laid by 700 hens roaming the farm orchard. Exact lot date is illustrative.'},
+      {id:'egg-tomlin', food:'eggs', place:'tomlinsons', product:'Ian Taylor free-range eggs', origin:'Burton Leonard, Harrogate', originKm:48, chain:2, freshness:86, confidence:88, method:88, local:75, coverage:66, price:4.10, priceUnit:'12', priceScore:74, event:'Collected 2d ago', eventShort:'Collected 2d', evidence:'Named supplier on retailer site', availability:'Farm shop', tags:['named farmer','Yorkshire','free range'], notes:'Tomlinsons names Ian Taylor in Burton Leonard as its free-range egg supplier. Exact collection date is a sample signal.'},
+      {id:'egg-tesco', food:'eggs', place:'tesco', product:'British free-range eggs', origin:'UK pooled · farm code unread', originKm:260, chain:4, freshness:70, confidence:44, method:72, local:22, coverage:100, price:2.85, priceUnit:'12', priceScore:96, event:'Best-before proxy', eventShort:'Age uncertain', evidence:'Category-level claim only', availability:'Open today', tags:['one-stop','low price','origin unresolved'], notes:'A British label is not a farm-level provenance record. FIELD reduces confidence until the producer code resolves.'},
+
+      {id:'meat-willow', food:'meat', place:'willow', product:'Farm pork shoulder', origin:'Willow Park Farm, Garforth', originKm:0.1, chain:1, freshness:94, confidence:82, method:93, local:100, coverage:32, price:7.90, priceUnit:'kg', priceScore:78, event:'Butchered 2d ago', eventShort:'Cut 2d', evidence:'Own-farm meat claim', availability:'Open 7 days', tags:['own farm','cut in shop','whole animal'], notes:'Willow Park publicly describes fresh meat, poultry and eggs direct from its own farm and preparation in shop. Lot date is illustrative.'},
+      {id:'meat-crag', food:'meat', place:'crag', product:'Longhorn beef', origin:'Crag House Farm, Leeds', originKm:0.1, chain:1, freshness:96, confidence:92, method:97, local:100, coverage:57, price:18.00, priceUnit:'kg', priceScore:49, event:'21-day matured', eventShort:'21d matured', evidence:'Named on-farm herd', availability:'Farm shop', tags:['own Longhorn herd','matured','high welfare'], notes:'For beef, controlled maturation can improve eating quality. Freshness score reflects custody and fit, not simply minimum age.'},
+      {id:'meat-swill', food:'meat', place:'swillington', product:'Organic lamb box', origin:'Swillington Organic Farm', originKm:0.1, chain:1, freshness:93, confidence:94, method:98, local:100, coverage:44, price:16.00, priceUnit:'kg equivalent', priceScore:55, event:'Farm-share batch', eventShort:'Batch direct', evidence:'Direct farm-share model', availability:'Seasonal batch', tags:['organic','farm share','direct custody'], notes:'Swillington states it has farmed and sold meat, veg and eggs direct since 1999. Availability is batch-led.'},
+      {id:'meat-tomlin', food:'meat', place:'tomlinsons', product:'Yorkshire butcher selection', origin:'Named Yorkshire suppliers', originKm:55, chain:2, freshness:86, confidence:78, method:86, local:76, coverage:66, price:12.00, priceUnit:'kg', priceScore:66, event:'Cut in house', eventShort:'Cut in shop', evidence:'Local sourcing + in-house butcher', availability:'Farm shop', tags:['in-house butcher','Yorkshire sourced','wide range'], notes:'Tomlinsons says it sources locally from Yorkshire suppliers and operates in-house butchers. Individual farm should be attached to each lot.'},
+      {id:'meat-tesco', food:'meat', place:'tesco', product:'British beef mince', origin:'UK pooled supply', originKm:310, chain:4, freshness:72, confidence:59, method:61, local:18, coverage:100, price:7.00, priceUnit:'kg', priceScore:92, event:'Packed 3d ago', eventShort:'Packed 3d', evidence:'Pack label, no named farm', availability:'Open today', tags:['one-stop','British','pooled origin'], notes:'Supermarket convenience wins the basket; farm-level custody remains unresolved in the sample lot.'},
+
+      {id:'fish-tarbetts', food:'fish', place:'tarbetts', product:'Day-boat mackerel', origin:'North Sea landing · sample vessel lot', originKm:150, chain:2, freshness:98, confidence:86, method:98, local:53, coverage:78, price:12.00, priceUnit:'kg', priceScore:72, event:'Landed 10h ago', eventShort:'Landed 10h', evidence:'Day-boat and line-caught range claim', availability:'Market today', tags:['day boat','line caught','hours from sea'], notes:"Tarbett's publicly says some day-boat fish can be delivered only hours after leaving the ocean and lists wild line-caught species. Exact vessel and landing are sample lot fields."},
+      {id:'fish-bethell', food:'fish', place:'bethell', product:'North Sea codling', origin:'North Sea', originKm:160, chain:2, freshness:92, confidence:84, method:90, local:51, coverage:78, price:17.00, priceUnit:'kg', priceScore:61, event:'Received 18h ago', eventShort:'Received 18h', evidence:'Direct North Sea receipt claim', availability:'Market today', tags:['responsible stock','direct received','market cut'], notes:'R. Bethell says its fish and shellfish come from responsibly harvested North Sea stock and are directly received and prepared.'},
+      {id:'fish-kirkgate', food:'fish', place:'kirkgate', product:'Fresh fish counter choice', origin:'Mixed UK landings', originKm:190, chain:3, freshness:84, confidence:58, method:74, local:45, coverage:78, price:13.50, priceUnit:'kg', priceScore:69, event:'Counter today', eventShort:'Lot varies', evidence:'Market-level, trader unresolved', availability:'Market hours', tags:['choice','whole-basket market','ask landing'], notes:'Kirkgate offers strong fishmonger density, but the score remains restrained until a specific trader, vessel and landing are resolved.'},
+      {id:'fish-tesco', food:'fish', place:'tesco', product:'British cod fillets', origin:'UK landing · processor pooled', originKm:350, chain:5, freshness:67, confidence:68, method:62, local:18, coverage:100, price:16.00, priceUnit:'kg', priceScore:65, event:'Packed 72h ago', eventShort:'Packed 3d', evidence:'Pack label', availability:'Open today', tags:['one-stop','filleted','cold-chain'], notes:'Pack-level evidence can be strong while eating freshness is lower due to elapsed time and more processing steps.'},
+
+      {id:'bread-coop', food:'bread', place:'breadcoop', product:'Long-ferment sourdough', origin:'Leeds Bread Co-op', originKm:0.1, chain:1, freshness:98, confidence:94, method:96, local:100, coverage:22, price:4.50, priceUnit:'loaf', priceScore:65, event:'Baked 4h ago', eventShort:'Baked 4h', evidence:'Direct bakery shop', availability:'Tue–Sat', tags:['baked today','worker co-op','long ferment'], notes:'Leeds Bread Co-op operates a bakery shop and local collection network. Exact bake time is a sample batch signal.'},
+      {id:'bread-crag', food:'bread', place:'crag', product:'Leeds Bread Co-op loaf', origin:'Leeds Bread Co-op', originKm:8, chain:2, freshness:89, confidence:88, method:94, local:95, coverage:57, price:4.75, priceUnit:'loaf', priceScore:61, event:'Delivered 8h ago', eventShort:'Baked today', evidence:'Named local supplier', availability:'Farm shop', tags:['named baker','one extra leg','farm-shop basket'], notes:'Crag House publicly names Leeds Bread Co-op among local suppliers. Delivery timing is illustrative.'},
+      {id:'bread-kirkgate', food:'bread', place:'kirkgate', product:'Market bakery loaf', origin:'Leeds bakery · trader declaration', originKm:6, chain:2, freshness:87, confidence:54, method:78, local:92, coverage:78, price:3.60, priceUnit:'loaf', priceScore:76, event:'Baked this morning', eventShort:'Baked today', evidence:'Trader signal pending', availability:'Market hours', tags:['market convergence','local claim','batch unknown'], notes:'High potential but confidence remains lower without a named bakery and oven timestamp.'},
+      {id:'bread-tesco', food:'bread', place:'tesco', product:'In-store white bloomer', origin:'Baked in store from prepared dough', originKm:22, chain:4, freshness:92, confidence:82, method:51, local:30, coverage:100, price:1.80, priceUnit:'loaf', priceScore:98, event:'Baked 3h ago', eventShort:'Baked 3h', evidence:'In-store bake time', availability:'Open today', tags:['very recent bake','one-stop','prepared dough'], notes:'Clock freshness can be excellent while ingredient and fermentation quality score lower. FIELD keeps those dimensions visible.'},
+
+      {id:'milk-elmfield', food:'milk', place:'elmfield', product:'Local whole milk delivery', origin:'Yorkshire dairy network', originKm:32, chain:2, freshness:93, confidence:80, method:84, local:88, coverage:40, price:1.45, priceUnit:'pint', priceScore:72, event:'Bottled 1d ago', eventShort:'Bottled 1d', evidence:'Local dairy delivery claim', availability:'Delivery round', tags:['local round','reusable route','family dairy'], notes:'Elmfield describes itself as a family-run local dairy supplier delivering across Yorkshire. Named producing farm should be added at lot level.'},
+      {id:'milk-crag', food:'milk', place:'crag', product:'Yorkshire farm milk', origin:'Yorkshire supplier', originKm:45, chain:2, freshness:86, confidence:62, method:78, local:79, coverage:57, price:1.35, priceUnit:'pint', priceScore:77, event:'Delivered 2d ago', eventShort:'Delivered 2d', evidence:'Farm-shop local range', availability:'Farm shop', tags:['farm-shop basket','Yorkshire','supplier unresolved'], notes:'A useful convergence option, but the score is capped until the dairy and bottling date are named.'},
+      {id:'milk-tesco', food:'milk', place:'tesco', product:'British whole milk', origin:'Regional pooled dairy supply', originKm:155, chain:4, freshness:82, confidence:68, method:68, local:34, coverage:100, price:0.90, priceUnit:'pint equivalent', priceScore:99, event:'Bottled 2d ago', eventShort:'Bottled 2d', evidence:'Pack and use-by date', availability:'Open today', tags:['one-stop','low price','pooled milk'], notes:'A supermarket may be genuinely competitive on freshness for fast-moving milk, even with weaker farm-level provenance.'},
+      {id:'milk-sains', food:'milk', place:'sainsburys', product:'British organic whole milk', origin:'UK organic dairy pool', originKm:210, chain:4, freshness:80, confidence:72, method:82, local:27, coverage:100, price:1.30, priceUnit:'pint equivalent', priceScore:81, event:'Bottled 2d ago', eventShort:'Bottled 2d', evidence:'Organic pack claim', availability:'Open today', tags:['one-stop','organic','pooled origin'], notes:'Method gains from organic certification; distance and farm identity remain unresolved.'}
+    ];
+
+    const state = {
+      food: 'tomatoes',
+      mode: 'fresh',
+      abundance: false,
+      mapView: 'offers',
+      user: {lat:53.7919, lng:-1.3874, label:'Garforth, Leeds'},
+      selectedOffer: null,
+      basket: ['tomatoes','potatoes','eggs','meat','fish','bread','milk']
+    };
+
+    const $ = (s, p=document) => p.querySelector(s);
+    const $$ = (s, p=document) => [...p.querySelectorAll(s)];
+    const clamp = (n,min,max) => Math.max(min,Math.min(max,n));
+    const round1 = n => Math.round(n*10)/10;
+    const foodOffers = food => OFFERS.filter(o => o.food === food);
+    const placeOf = offer => PLACES[offer.place];
+
+    function haversineMiles(a,b) {
+      const R=3958.8, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
+      const la1=a.lat*Math.PI/180, la2=b.lat*Math.PI/180;
+      const x=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+      return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+    }
+
+    function distanceScore(offer) {
+      const d = haversineMiles(state.user, placeOf(offer));
+      return clamp(100 - d*4.4, 15, 100);
+    }
+
+    function weights() {
+      if (state.abundance) return {freshness:.42, confidence:.16, distance:.08, method:.20, local:.14, price:0, coverage:0};
+      return {
+        fresh: {freshness:.43, confidence:.17, distance:.10, method:.12, local:.10, price:.05, coverage:.03},
+        oneTrip:{freshness:.25, confidence:.10, distance:.07, method:.06, local:.06, price:.08, coverage:.38},
+        value:{freshness:.27, confidence:.12, distance:.09, method:.07, local:.07, price:.34, coverage:.04},
+        local:{freshness:.27, confidence:.13, distance:.12, method:.12, local:.30, price:.03, coverage:.03}
+      }[state.mode];
+    }
+
+    function scoreOffer(o) {
+      const w=weights();
+      const score = o.freshness*w.freshness + o.confidence*w.confidence + distanceScore(o)*w.distance + o.method*w.method + o.local*w.local + o.priceScore*w.price + o.coverage*w.coverage;
+      return Math.round(score);
+    }
+
+    function ranked(food=state.food) {
+      return foodOffers(food).map(o => ({...o, score:scoreOffer(o), distance:round1(haversineMiles(state.user, placeOf(o)))})).sort((a,b)=>b.score-a.score || b.confidence-a.confidence);
+    }
+
+    function freshnessLabel(score) {
+      if(score>=92) return 'Exceptional';
+      if(score>=84) return 'Very fresh';
+      if(score>=74) return 'Strong';
+      if(score>=64) return 'Convenient';
+      return 'Compromised';
+    }
+
+    function setAccent() {
+      document.documentElement.style.setProperty('--accent', FOOD[state.food].color);
+    }
+
+    function renderFoodList() {
+      $('#foodList').innerHTML = Object.entries(FOOD).map(([key,f]) => {
+        const best=ranked(key)[0];
+        return `<button class="food-btn ${state.food===key?'active':''}" data-food="${key}">
+          <span class="food-icon" style="color:${f.color}">${f.icon}</span>
+          <span><span class="food-name">${f.label}</span><span class="food-season">${f.season}</span></span>
+          <span class="food-score">${best.score}</span>
+        </button>`;
+      }).join('');
+      $$('.food-btn').forEach(b=>b.addEventListener('click',()=>selectFood(b.dataset.food)));
+    }
+
+    function renderHero() {
+      const f=FOOD[state.food], list=ranked(), best=list[0];
+      $('#heroFood').textContent=`freshest ${f.singular}`;
+      $('#heroCopy').textContent=f.copy;
+      $('#foodSearch').placeholder=`Try ${Object.keys(FOOD).filter(k=>k!==state.food).slice(0,4).join(', ')}…`;
+      $('#metricBest').textContent=`${best.score} / 100`;
+      $('#metricDistance').textContent=`${best.distance} mi`;
+      $('#metricAge').textContent=best.event;
+      $('#metricConfidence').textContent=`${best.confidence}%`;
+      $('#suggestions').innerHTML=Object.keys(FOOD).filter(k=>k!==state.food).slice(0,5).map(k=>`<button class="suggestion" data-food="${k}">${FOOD[k].label}</button>`).join('<span style="color:#39423b">·</span>');
+      $$('.suggestion').forEach(b=>b.addEventListener('click',()=>selectFood(b.dataset.food)));
+    }
+
+    function mapXY(lat,lng) {
+      const bounds={north:53.885,south:53.735,west:-1.72,east:-1.33};
+      const x=clamp((lng-bounds.west)/(bounds.east-bounds.west)*100,3,97);
+      const y=clamp((bounds.north-lat)/(bounds.north-bounds.south)*100,4,96);
+      return {x,y};
+    }
+
+    function pinColor(place) {
+      const cat=place.categories[0];
+      return FOOD[cat]?.color || '#b9f879';
+    }
+
+    function renderMap() {
+      const home=mapXY(state.user.lat,state.user.lng);
+      $('#mapHome').style.left=home.x+'%'; $('#mapHome').style.top=home.y+'%';
+      $('#mapRings').innerHTML=[90,180,280].map(s=>`<div class="map-home-ring" style="left:${home.x}%;top:${home.y}%;width:${s}px;height:${s}px"></div>`).join('');
+      const visibleIds = state.mapView==='network' ? Object.keys(PLACES) : [...new Set(foodOffers(state.food).map(o=>o.place))];
+      $('#mapPins').innerHTML=visibleIds.map(id=>{
+        const p=PLACES[id], pos=mapXY(p.lat,p.lng);
+        const active=state.selectedOffer && state.selectedOffer.place===id;
+        return `<button class="map-pin ${active?'active':''}" data-place="${id}" style="left:${pos.x}%;top:${pos.y}%;--pin:${pinColor(p)}" aria-label="${p.name}">
+          <span class="pin-core"><span>${p.icon}</span></span>
+          <span class="pin-label"><strong>${p.short}</strong><small>${round1(haversineMiles(state.user,p))} mi · ${p.type}</small></span>
+        </button>`;
+      }).join('');
+      $$('.map-pin').forEach(pin=>pin.addEventListener('click',()=>selectPlace(pin.dataset.place)));
+    }
+
+    function renderBest() {
+      const list=ranked(), best=list[0];
+      const convergence=[...list].sort((a,b)=>b.coverage-a.coverage || b.score-a.score)[0];
+      $('#bestTitle').textContent=placeOf(best).name;
+      $('#bestMeta').textContent=`${best.event} · ${best.chain} chain step${best.chain>1?'s':''} · ${best.evidence}`;
+      $('#bestScore').textContent=best.score;
+      $('#convergenceTitle').textContent=placeOf(convergence).name;
+      $('#convergenceMeta').textContent=`${convergence.coverage}% basket coverage · ${convergence.eventShort}`;
+      $('#convergenceScore').textContent=convergence.score;
+    }
+
+    function renderOffers() {
+      const list=ranked();
+      if(!state.selectedOffer || state.selectedOffer.food!==state.food) state.selectedOffer=list[0];
+      $('#offersHeading').textContent=`${FOOD[state.food].label} near Leeds`;
+      $('#offers').innerHTML=list.map((o,i)=>{
+        const p=placeOf(o), active=state.selectedOffer?.id===o.id;
+        return `<article class="offer-card ${active?'active':''}" data-offer="${o.id}" tabindex="0">
+          <div class="offer-rank"><strong>${o.score}</strong><span>${freshnessLabel(o.score)}</span></div>
+          <div>
+            <div class="offer-name">${o.product}</div>
+            <div class="offer-place">${p.name} · ${o.origin}</div>
+            <div class="offer-tags">
+              <span class="tag strong">${o.eventShort}</span>
+              <span class="tag">${o.chain} chain step${o.chain>1?'s':''}</span>
+              ${o.tags.slice(0,2).map(t=>`<span class="tag">${t}</span>`).join('')}
+            </div>
+          </div>
+          <div class="offer-side">
+            <div><div class="offer-price">£${o.price.toFixed(2)} <span style="color:var(--muted);font-weight:500">/ ${o.priceUnit}</span></div><div class="offer-distance">${o.distance} mi from you</div></div>
+            <div class="confidence"><span>${o.confidence}% evidence</span><span class="confidence-bar"><i style="width:${o.confidence}%"></i></span></div>
+          </div>
+        </article>`;
+      }).join('');
+      $$('.offer-card').forEach(card=>{
+        card.addEventListener('click',()=>selectOffer(card.dataset.offer));
+        card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectOffer(card.dataset.offer)}});
+      });
+    }
+
+    function combinations(arr,maxSize=3) {
+      const out=[];
+      function rec(start,combo,size){
+        if(combo.length===size){out.push([...combo]);return;}
+        for(let i=start;i<arr.length;i++){combo.push(arr[i]);rec(i+1,combo,size);combo.pop();}
+      }
+      for(let s=1;s<=maxSize;s++) rec(0,[],s);
+      return out;
+    }
+
+    function routeCandidates() {
+      const basket=state.basket.length?state.basket:[state.food];
+      const relevantPlaces=[...new Set(OFFERS.filter(o=>basket.includes(o.food)).map(o=>o.place))];
+      const penalty = state.abundance?2:{fresh:4,oneTrip:17,value:9,local:6}[state.mode];
+      return combinations(relevantPlaces,3).map(stops=>{
+        let covered=0,total=0,selected=[];
+        basket.forEach(food=>{
+          const options=ranked(food).filter(o=>stops.includes(o.place));
+          if(options.length){covered++;total+=options[0].score;selected.push(options[0]);}
+        });
+        const coverage=covered/basket.length;
+        const avg=covered?total/covered:0;
+        const routeScore=Math.round(avg*coverage - Math.max(0,stops.length-1)*penalty);
+        return {stops,selected,coverage,score:routeScore,tripCount:stops.length,avg:Math.round(avg)};
+      }).filter(r=>r.coverage>=.5).sort((a,b)=>b.score-a.score || a.tripCount-b.tripCount);
+    }
+
+    function uniqueRoutes() {
+      const candidates=routeCandidates();
+      const picks=[];
+      [1,2,3].forEach(n=>{
+        const r=candidates.find(x=>x.tripCount===n && x.coverage===1);
+        if(r) picks.push(r);
+      });
+      for(const r of candidates){ if(picks.length>=3) break; if(!picks.includes(r)) picks.push(r); }
+      return picks.slice(0,3);
+    }
+
+    function renderBasket() {
+      const bestRoute=routeCandidates()[0];
+      const chosenByFood={};
+      if(bestRoute) bestRoute.selected.forEach(o=>chosenByFood[o.food]=o);
+      $('#basketList').innerHTML=state.basket.map(food=>{
+        const o=chosenByFood[food] || ranked(food)[0];
+        return `<div class="basket-row">
+          <span class="basket-ico" style="color:${FOOD[food].color}">${FOOD[food].icon}</span>
+          <span><span class="basket-food">${FOOD[food].label}</span><span class="basket-source">${placeOf(o).short} · ${o.eventShort}</span></span>
+          <span><span class="basket-score">${o.score}</span><button class="basket-remove" data-remove="${food}" aria-label="Remove ${food}">×</button></span>
+        </div>`;
+      }).join('') || '<p class="rail-copy" style="margin-top:14px">Your basket is empty. Add a food to resolve a route.</p>';
+      $$('.basket-remove').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();state.basket=state.basket.filter(x=>x!==b.dataset.remove);persist();renderAll();}));
+
+      if(!bestRoute){ $('#routeSummary').innerHTML='<div class="eyebrow">No route yet</div><p class="route-detail">Add at least one food.</p>'; return; }
+      $('#routeSummary').innerHTML=`
+        <div class="route-summary-top"><div><div class="eyebrow">Current optimum</div><h3>${bestRoute.tripCount===1?'One-stop basket':bestRoute.tripCount+'-stop route'}</h3></div><div class="route-score">${bestRoute.score}</div></div>
+        <div class="route-stops">${bestRoute.stops.map(id=>`<span class="route-stop">${PLACES[id].short}</span>`).join('')}</div>
+        <div class="route-detail">${Math.round(bestRoute.coverage*100)}% coverage · average lot fit ${bestRoute.avg}. Your law is <strong style="color:var(--text)">${modeLabel()}</strong>.</div>
+        <div class="route-actions"><button id="compareRoutes">Compare routes</button><button id="addCurrentBasket">Add current food</button></div>`;
+      $('#compareRoutes').addEventListener('click',openRoutes);
+      $('#addCurrentBasket').addEventListener('click',addCurrentToBasket);
+    }
+
+    function renderLedger() {
+      const o=state.selectedOffer || ranked()[0];
+      const vals=[['Freshness',o.freshness],['Evidence',o.confidence],['Method',o.method],['Local value',o.local],['Proximity',Math.round(distanceScore(o))],['Basket cover',o.coverage],['Price fit',o.priceScore]];
+      $('#ledger').innerHTML=vals.map(([l,v])=>`<div class="ledger-row"><span class="ledger-label">${l}</span><span class="ledger-track"><i style="width:${v}%"></i></span><span class="ledger-value">${v}</span></div>`).join('');
+    }
+
+    function snapshot() {
+      const current=ranked();
+      const routes=uniqueRoutes();
+      return {
+        generated_at:new Date().toISOString(),
+        market:'Leeds, West Yorkshire',
+        location:state.user,
+        query:{food:state.food, mode:state.mode, abundance:state.abundance},
+        best_offer:serializeOffer(current[0]),
+        ranked_offers:current.map(serializeOffer),
+        basket:state.basket,
+        routes:routes.map(r=>({score:r.score,stops:r.stops.map(id=>PLACES[id].name),coverage:r.coverage,offers:r.selected.map(o=>o.id)})),
+        data_status:'demonstration lots; public venue and sourcing claims; not live inventory'
+      };
+    }
+
+    function serializeOffer(o) {
+      return {id:o.id,food:o.food,product:o.product,retailer:placeOf(o).name,origin:o.origin,distance_from_user_miles:o.distance ?? round1(haversineMiles(state.user,placeOf(o))),score:o.score ?? scoreOffer(o),freshness_event:o.event,chain_steps:o.chain,evidence_confidence:o.confidence,price_gbp:o.price,price_unit:o.priceUnit,availability:o.availability};
+    }
+
+    function renderAgent() {
+      const s=snapshot();
+      const compact={query:s.query,best_offer:s.best_offer,routes:s.routes.slice(0,2),data_status:s.data_status};
+      $('#agentCode').textContent=JSON.stringify(compact,null,2);
+    }
+
+    function renderSources() {
+      const ids=[...new Set(foodOffers(state.food).map(o=>o.place))].slice(0,5);
+      $('#sourceList').innerHTML=ids.map(id=>`<a class="source-link" href="${PLACES[id].source}" target="_blank" rel="noopener"><span>${PLACES[id].sourceLabel}</span><span>↗</span></a>`).join('');
+    }
+
+    function renderRoutes() {
+      const routes=uniqueRoutes();
+      const labels=['Least friction','Balanced network','Maximum freshness'];
+      $('#routeOptions').innerHTML=routes.map((r,i)=>`<article class="route-option ${i===0?'best':''}">
+        <div class="eyebrow">${labels[i]||'Alternative'}</div>
+        <h4>${r.tripCount} stop${r.tripCount>1?'s':''} · ${Math.round(r.coverage*100)}% basket</h4>
+        <p>${r.stops.map(id=>PLACES[id].name).join(' → ')}</p>
+        <div class="route-stops">${r.selected.map(o=>`<span class="route-stop">${FOOD[o.food].label}: ${placeOf(o).short}</span>`).join('')}</div>
+        <div class="route-score">${r.score} <small style="font-size:9px;color:var(--muted)">route fit</small></div>
+      </article>`).join('');
+    }
+
+    function renderDetails() {
+      const o=state.selectedOffer || ranked()[0], p=placeOf(o);
+      $('#detailsTitle').textContent=o.product;
+      $('#detailsContent').innerHTML=`
+        <div class="detail-card"><h4>Lot facts</h4><div class="fact-grid">
+          <div class="fact"><b>${o.event}</b><span>Freshness event</span></div>
+          <div class="fact"><b>${o.distance} mi</b><span>From you</span></div>
+          <div class="fact"><b>${o.originKm} km</b><span>Origin to seller</span></div>
+          <div class="fact"><b>${o.chain}</b><span>Chain steps</span></div>
+          <div class="fact"><b>${o.confidence}%</b><span>Evidence confidence</span></div>
+          <div class="fact"><b>£${o.price.toFixed(2)}</b><span>Per ${o.priceUnit}</span></div>
+        </div></div>
+        <div class="detail-card"><h4>Evidence read</h4><p class="rail-copy">${o.notes}</p><div class="offer-tags" style="margin-top:14px">${o.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div><a class="solid-btn" style="display:inline-block;text-decoration:none;margin-top:14px;padding:9px 12px" href="${p.source}" target="_blank" rel="noopener">Open public source ↗</a></div>`;
+    }
+
+    function modeLabel(){ return {fresh:'freshest possible',oneTrip:'fewest trips',value:'best value',local:'local resilience'}[state.mode] + (state.abundance?' · abundance':''); }
+
+    function renderAll() {
+      setAccent(); renderFoodList(); renderHero(); renderMap(); renderBest(); renderOffers(); renderBasket(); renderLedger(); renderAgent(); renderSources(); renderRoutes(); renderDetails();
+      $$('.pref-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
+      $('#abundanceSwitch').classList.toggle('on',state.abundance);
+      $('#abundanceSwitch').setAttribute('aria-pressed',String(state.abundance));
+      $('#locationText').textContent=state.user.label;
+      document.dispatchEvent(new CustomEvent('field:selection',{detail:snapshot()}));
+    }
+
+    function selectFood(food) {
+      if(!FOOD[food]) return;
+      state.food=food; state.selectedOffer=null; persist(); renderAll();
+      history.replaceState(null,'',`?food=${food}&mode=${state.mode}${state.abundance?'&abundance=1':''}`);
+      if(innerWidth<821) $('#offersSection').scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    function selectOffer(id) {
+      const o=ranked().find(x=>x.id===id) || OFFERS.find(x=>x.id===id);
+      if(!o) return;
+      state.selectedOffer=o; renderOffers(); renderMap(); renderLedger(); renderAgent(); renderDetails();
+      $('#detailsDrawer').classList.add('open'); $('#detailsDrawer').setAttribute('aria-hidden','false');
+    }
+
+    function selectPlace(placeId) {
+      const o=ranked().find(x=>x.place===placeId);
+      if(o) selectOffer(o.id);
+      else showToast('No current '+FOOD[state.food].label.toLowerCase()+' lot here');
+    }
+
+    function addCurrentToBasket() {
+      if(!state.basket.includes(state.food)) {state.basket.push(state.food);persist();renderAll();showToast(`${FOOD[state.food].label} added`);} else showToast('Already in basket');
+    }
+
+    function openRoutes() { renderRoutes(); $('#routeDrawer').classList.add('open'); $('#routeDrawer').setAttribute('aria-hidden','false'); }
+    function closeDrawer(id) { $('#'+id).classList.remove('open'); $('#'+id).setAttribute('aria-hidden','true'); }
+    function showToast(msg) { const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>t.classList.remove('show'),1800); }
+
+    function persist() {
+      try{localStorage.setItem('field-state',JSON.stringify({food:state.food,mode:state.mode,abundance:state.abundance,user:state.user,basket:state.basket}));}catch(e){}
+    }
+
+    function restore() {
+      try{const x=JSON.parse(localStorage.getItem('field-state'));if(x)Object.assign(state,x);}catch(e){}
+      const q=new URLSearchParams(location.search);
+      if(FOOD[q.get('food')]) state.food=q.get('food');
+      if(['fresh','oneTrip','value','local'].includes(q.get('mode'))) state.mode=q.get('mode');
+      if(q.get('abundance')==='1') state.abundance=true;
+    }
+
+    function resolveSearch() {
+      const value=$('#foodSearch').value.trim().toLowerCase();
+      const hit=Object.keys(FOOD).find(k=>k.includes(value)||FOOD[k].label.toLowerCase().includes(value));
+      if(hit){selectFood(hit);$('#foodSearch').value='';} else showToast('Try tomatoes, potatoes, eggs, meat, fish, bread or milk');
+    }
+
+    function locate() {
+      if(!navigator.geolocation){showToast('Location is unavailable');return;}
+      $('#locationText').textContent='Locating…';
+      navigator.geolocation.getCurrentPosition(pos=>{
+        state.user={lat:pos.coords.latitude,lng:pos.coords.longitude,label:'Current location'};persist();renderAll();showToast('Proximity recalculated');
+      },()=>{state.user={lat:53.7919,lng:-1.3874,label:'Garforth, Leeds'};renderAll();showToast('Using Garforth pilot location');},{enableHighAccuracy:false,timeout:6000,maximumAge:600000});
+    }
+
+    function updateClock(){
+      const now=new Date();
+      const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZoneName:'short'}).format(now);
+      $('#ukClock').textContent=parts;
+    }
+
+    function exportJson() {
+      const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`field-leeds-${state.food}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    }
+
+    function initEvents() {
+      $('#searchBtn').addEventListener('click',resolveSearch);
+      $('#foodSearch').addEventListener('keydown',e=>{if(e.key==='Enter')resolveSearch();});
+      $('#locateBtn').addEventListener('click',locate);
+      $('#abundanceSwitch').addEventListener('click',()=>{state.abundance=!state.abundance;persist();renderAll();showToast(state.abundance?'Price removed from ranking':'Price restored to ranking');});
+      $$('.pref-btn').forEach(b=>b.addEventListener('click',()=>{state.mode=b.dataset.mode;persist();renderAll();}));
+      $$('.segmented button').forEach(b=>b.addEventListener('click',()=>{state.mapView=b.dataset.mapView;$$('.segmented button').forEach(x=>x.classList.toggle('active',x===b));renderMap();}));
+      $('#addCurrent').addEventListener('click',addCurrentToBasket);
+      $('#addBasketTop').addEventListener('click',addCurrentToBasket);
+      $('#agentTopBtn').addEventListener('click',()=>$('#agentSection').scrollIntoView({behavior:'smooth',block:'center'}));
+      $('#copyJson').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(JSON.stringify(snapshot(),null,2));showToast('JSON copied');}catch(e){showToast('Copy unavailable');}});
+      $('#downloadJson').addEventListener('click',exportJson);
+      $$('[data-close-drawer]').forEach(b=>b.addEventListener('click',()=>closeDrawer(b.dataset.closeDrawer)));
+      $$('.mobile-nav button').forEach(b=>b.addEventListener('click',()=>{$$('.mobile-nav button').forEach(x=>x.classList.toggle('active',x===b));$('#'+b.dataset.mobileTarget).scrollIntoView({behavior:'smooth',block:'start'});}));
+      document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer('routeDrawer');closeDrawer('detailsDrawer');}});
+    }
+
+    restore();
+    initEvents();
+    updateClock(); setInterval(updateClock,1000);
+    renderAll();
+
+    window.FIELD_API = {
+      version:'0.1.0-leeds',
+      query:(food=state.food,mode=state.mode)=>{const oldF=state.food,oldM=state.mode;state.food=FOOD[food]?food:oldF;state.mode=['fresh','oneTrip','value','local'].includes(mode)?mode:oldM;const result=snapshot();state.food=oldF;state.mode=oldM;return result;},
+      snapshot,
+      schema:{offer:['id','food','product','retailer','origin','distance_from_user_miles','score','freshness_event','chain_steps','evidence_confidence','price_gbp','price_unit','availability']}
+    };
+  })();
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+          .then(registration => { window.FIELD_PWA = { ready: true, scope: registration.scope }; })
+          .catch(error => { window.FIELD_PWA = { ready: false, error: String(error) }; });
+      });
+    }
+  </script>
+</body>
+</html>
