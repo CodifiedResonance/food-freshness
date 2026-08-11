@@ -1,19 +1,23 @@
-const CACHE = 'provision-leeds-v2.0.0';
+const CACHE = 'provision-leeds-v2.1.0';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-1024.png',
-  './icons/icon-512-maskable.png',
-  './icons/apple-touch-icon.png',
-  './icons/favicon-48.png',
-  './assets/provision-portal-source.jpg'
+  './icon-192.png',
+  './icon-512.png',
+  './icon-1024.png',
+  './icon-512-maskable.png',
+  './apple-touch-icon.png',
+  './favicon-48.png',
+  './provision-portal-source.jpg'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(
+    caches.open(CACHE).then(cache =>
+      Promise.all(APP_SHELL.map(url => cache.add(url).catch(() => null)))
+    )
+  );
   self.skipWaiting();
 });
 
