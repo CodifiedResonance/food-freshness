@@ -1,0 +1,49 @@
+{
+  "id": "./",
+  "name": "PROVISION \u2014 Leeds Provision Network",
+  "short_name": "PROVISION",
+  "description": "Provision is the live map of what a place can provide \u2014 food availability, provenance, freshness and basket convergence in one interface.",
+  "lang": "en-GB",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "background_color": "#15110d",
+  "theme_color": "#18130f",
+  "categories": [
+    "food",
+    "shopping",
+    "lifestyle",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
