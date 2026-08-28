@@ -428,6 +428,7 @@
         <span class="location-text" id="locationText">Garforth, Leeds</span>
       </button>
       <button class="ghost-btn" id="installBtn" aria-label="Install Provision">Install</button>
+      <button class="ghost-btn desktop-only" id="liveNetworkStatus" disabled>Network syncing</button>
       <button class="ghost-btn desktop-only" id="agentTopBtn">Agent port</button>
       <button class="solid-btn desktop-only" id="addBasketTop">Add to basket</button>
     </div>
@@ -627,9 +628,14 @@
   }
   </script>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
   (() => {
     'use strict';
+
+    const SUPABASE_URL='https://aumcpvepxeytfiqhsmwf.supabase.co';
+    const SUPABASE_KEY='sb_publishable_nwtiv-Qi5tdIZ-cVDRI7BQ_-lzY8paJ';
+    const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
     const FOOD = {
       tomatoes: {label:'Tomatoes', singular:'tomatoes', icon:'●', color:'#ff6a50', season:'Yorkshire peak now', copy:'Resolve harvest recency, production distance and cold-chain steps before comparing the convenience premium.'},
@@ -659,7 +665,7 @@
       sainsburys: {name:"Sainsbury's, Colton", short:"Sainsbury's", lat:53.7887, lng:-1.4435, type:'supermarket', categories:['tomatoes','potatoes','eggs','meat','fish','bread','milk'], icon:'1', source:'https://www.sainsburys.co.uk/', sourceLabel:"Sainsbury's"}
     };
 
-    const OFFERS = [
+    let OFFERS = [
       {id:'tom-meanwood', food:'tomatoes', place:'meanwood', product:'Tunnel tomatoes', origin:'Meanwood, Leeds', originKm:0.1, chain:1, freshness:97, confidence:72, method:94, local:100, coverage:18, price:3.40, priceUnit:'500g', priceScore:58, event:'Picked 8h ago', eventShort:'Picked 8h', evidence:'Producer-direct seasonal signal', availability:'Weekly collection', tags:['grown on site','picked today','no wholesale leg'], notes:'Sample lot signal modelling a same-day tunnel harvest. Venue and veg-box operation are public; exact current tomato lot requires producer confirmation.'},
       {id:'tom-leedsveg', food:'tomatoes', place:'leedsVeg', product:'Yorkshire summer tomatoes', origin:'Leeds-area partner farms', originKm:18, chain:2, freshness:90, confidence:61, method:82, local:88, coverage:30, price:3.10, priceUnit:'500g', priceScore:63, event:'Packed 18h ago', eventShort:'Packed 18h', evidence:'Seller-declared local summer sourcing', availability:'Delivery', tags:['organic','Leeds summer farms','delivered'], notes:'Public site says summer produce comes from Leeds farms. Exact grower and harvest timestamp are represented as a sample lot.'},
       {id:'tom-kirkgate', food:'tomatoes', place:'kirkgate', product:'Yorkshire vine tomatoes', origin:'Yorkshire · seller declaration', originKm:42, chain:2, freshness:83, confidence:55, method:72, local:72, coverage:78, price:2.75, priceUnit:'500g', priceScore:70, event:'Market overnight', eventShort:'~30h chain', evidence:'Trader declaration pending lot scan', availability:'Market hours', tags:['independent trader','whole-basket market','ask the grower'], notes:'Kirkgate is a genuine fresh-food convergence point. Individual trader provenance varies and should be captured at lot level.'},
@@ -700,6 +706,58 @@
       {id:'milk-tesco', food:'milk', place:'tesco', product:'British whole milk', origin:'Regional pooled dairy supply', originKm:155, chain:4, freshness:82, confidence:68, method:68, local:34, coverage:100, price:0.90, priceUnit:'pint equivalent', priceScore:99, event:'Bottled 2d ago', eventShort:'Bottled 2d', evidence:'Pack and use-by date', availability:'Open today', tags:['one-stop','low price','pooled milk'], notes:'A supermarket may be genuinely competitive on freshness for fast-moving milk, even with weaker farm-level provenance.'},
       {id:'milk-sains', food:'milk', place:'sainsburys', product:'British organic whole milk', origin:'UK organic dairy pool', originKm:210, chain:4, freshness:80, confidence:72, method:82, local:27, coverage:100, price:1.30, priceUnit:'pint equivalent', priceScore:81, event:'Bottled 2d ago', eventShort:'Bottled 2d', evidence:'Organic pack claim', availability:'Open today', tags:['one-stop','organic','pooled origin'], notes:'Method gains from organic certification; distance and farm identity remain unresolved.'}
     ];
+
+    const LIVE_PLACE_KEYS = new Set();
+    function liveFoodKey(row){
+      const map={tomato:'tomatoes',potato:'potatoes',eggs:'eggs',bread:'bread','red-snapper':'fish'};
+      if(map[row.food_slug]) return map[row.food_slug];
+      if(row.food_slug==='courgette') return 'courgettes';
+      return `live-${row.food_slug}`;
+    }
+    function ensureLiveFood(row){
+      const key=liveFoodKey(row);
+      if(!FOOD[key]){
+        const colors=['#9fc766','#d8b45f','#76bfd0','#d78873','#c7a675'];
+        const idx=Math.abs([...row.food_slug].reduce((a,c)=>a+c.charCodeAt(0),0))%colors.length;
+        FOOD[key]={label:row.food_name,singular:String(row.food_name).toLowerCase(),icon:'•',color:colors[idx],season:'Live network signal',copy:`Live Provision Network availability for ${String(row.food_name).toLowerCase()}. This record is ranked alongside public and illustrative context without hiding its evidence class.`};
+      }
+      return key;
+    }
+    function placeCoverage(type){return type==='retailer'?100:type==='market'?78:type==='producer'?28:type==='fishmonger'||type==='butcher'||type==='bakery'?52:40}
+    function evidenceConfidence(row){
+      const base={observed:60,declared:52,contextual:42,inferred:32}[row.truth_class]||45;
+      return clamp(base+(Number(row.evidence_strength)||0)*8,25,96);
+    }
+    function assertionFreshness(row){
+      const ageH=Math.max(0,(Date.now()-new Date(row.asserted_at).getTime())/36e5);
+      return clamp(Math.round(91-ageH*1.2),52,94);
+    }
+    function livePriceScore(price){if(price==null)return 55;const p=Number(price);return clamp(Math.round(100-p*5),35,99)}
+    async function loadLiveProvision(showToast=false){
+      const status=$('#liveNetworkStatus');if(status)status.textContent='Network syncing';
+      try{
+        const {data:rows,error}=await sb.from('current_offers').select('*').order('updated_at',{ascending:false});
+        if(error)throw error;
+        OFFERS=OFFERS.filter(o=>!o.live);
+        for(const row of (rows||[])){
+          const foodKey=ensureLiveFood(row);
+          const placeKey=`live-${row.source_slug}`;
+          const lat=Number(row.latitude),lng=Number(row.longitude);
+          if(!PLACES[placeKey]) PLACES[placeKey]={name:row.source_name,short:row.source_name,lat:Number.isFinite(lat)?lat:state.user.lat,lng:Number.isFinite(lng)?lng:state.user.lng,type:row.source_type,categories:[foodKey],icon:(row.source_name||'P')[0].toUpperCase(),source:'#',sourceLabel:'Provision Network live source'};
+          else if(!PLACES[placeKey].categories.includes(foodKey)) PLACES[placeKey].categories.push(foodKey);
+          LIVE_PLACE_KEYS.add(placeKey);
+          const distance=Number.isFinite(lat)&&Number.isFinite(lng)?haversineMiles(state.user,{lat,lng}):0;
+          const confidence=evidenceConfidence(row);
+          OFFERS.push({id:`live-${row.id}`,food:foodKey,place:placeKey,product:row.food_name,origin:`${row.source_name}${row.locality?' · '+row.locality:''}`,originKm:Math.max(.1,Math.round(distance*1.609*10)/10),chain:row.source_type==='producer'?1:row.source_type==='market'?2:3,freshness:assertionFreshness(row),confidence,method:row.source_type==='producer'?90:72,local:clamp(Math.round(100-distance*3.5),20,100),coverage:placeCoverage(row.source_type),price:row.price==null?0:Number(row.price),priceUnit:row.price_basis==='per_kg'?'kg':row.price_basis==='per_litre'?'litre':row.unit,priceScore:livePriceScore(row.price),event:`${row.state.replace('_',' ')} · verified ${new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}).format(new Date(row.asserted_at))}`,eventShort:`LIVE · ${row.state.replace('_',' ')}`,evidence:`${row.truth_class} · strength ${row.evidence_strength}/5`,availability:row.valid_until?`Valid until ${new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(row.valid_until))}`:'Current network state',tags:['LIVE NETWORK',row.state.replace('_',' '),row.truth_class],notes:`Live Provision Network record. ${row.note||'No additional note.'} Evidence class: ${row.truth_class}; strength ${row.evidence_strength}/5. The freshness score here reflects recency of the assertion unless a stronger food-specific freshness event is available.`,live:true,latestEventId:row.latest_event_id});
+        }
+        if(status)status.textContent=`LIVE · ${(rows||[]).length} offer${(rows||[]).length===1?'':'s'}`;
+        renderAll();
+        if(showToast)toast('Live network refreshed');
+      }catch(e){console.error(e);if(status)status.textContent='Network unavailable';}
+    }
+    function subscribeLiveProvision(){
+      return sb.channel('provision-current-offer').on('postgres_changes',{event:'*',schema:'public',table:'current_offer'},()=>loadLiveProvision()).subscribe();
+    }
 
     const state = {
       food: 'tomatoes',
@@ -768,7 +826,7 @@
         return `<button class="food-btn ${state.food===key?'active':''}" data-food="${key}">
           <span class="food-icon" style="color:${f.color}">${f.icon}</span>
           <span><span class="food-name">${f.label}</span><span class="food-season">${f.season}</span></span>
-          <span class="food-score">${best.score}</span>
+          <span class="food-score">${best?best.score:'—'}</span>
         </button>`;
       }).join('');
       $$('.food-btn').forEach(b=>b.addEventListener('click',()=>selectFood(b.dataset.food)));
@@ -1117,11 +1175,14 @@
     initEvents();
     updateClock(); setInterval(updateClock,1000);
     renderAll();
+    loadLiveProvision();
+    subscribeLiveProvision();
 
     window.PROVISION_API = {
-      version:'0.2.0-provision-leeds',
+      version:'1.0.0-live-leeds',
       query:(food=state.food,mode=state.mode)=>{const oldF=state.food,oldM=state.mode;state.food=FOOD[food]?food:oldF;state.mode=['fresh','oneTrip','value','local'].includes(mode)?mode:oldM;const result=snapshot();state.food=oldF;state.mode=oldM;return result;},
       snapshot,
+      refreshLive:()=>loadLiveProvision(true),
       schema:{offer:['id','food','product','retailer','origin','distance_from_user_miles','score','freshness_event','chain_steps','evidence_confidence','price_gbp','price_unit','availability']}
     };
     window.FIELD_API = window.PROVISION_API;

@@ -1,4 +1,4 @@
-const CACHE = 'provision-leeds-v2.1.0';
+const CACHE = 'provision-leeds-live-v3.0.0';
 const APP_SHELL = [
   './',
   './index.html',
