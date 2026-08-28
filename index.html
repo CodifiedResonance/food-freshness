@@ -733,6 +733,27 @@
       return clamp(Math.round(91-ageH*1.2),52,94);
     }
     function livePriceScore(price){if(price==null)return 55;const p=Number(price);return clamp(Math.round(100-p*5),35,99)}
+    function timeLondon(ts){return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}).format(new Date(ts))}
+    function provenanceFromRow(row){
+      let channel=row.update_channel||'';
+      if(!channel){
+        if(row.truth_class==='inferred')channel='provision_inference';
+        else if(row.source_type==='public_feed')channel='public_feed';
+        else if(row.truth_class==='observed')channel='community_observation';
+        else channel='source_direct';
+      }
+      const labels={source_direct:'SOURCE DIRECT',retailer_api:'RETAILER FEED',public_feed:'PUBLIC FEED',community_observation:'OBSERVATION',provision_inference:'INFERRED',manual_import:'IMPORTED',declared:'DECLARED',unknown:'PROVENANCE PENDING'};
+      const label=labels[channel]||String(channel).replaceAll('_',' ').toUpperCase();
+      const updater=row.update_label||row.source_name||'Provision Network';
+      let detail='';
+      if(channel==='source_direct') detail=`Updated directly by ${updater}${row.update_authenticated===false?'':' through an authenticated Provision Source account'}.`;
+      else if(channel==='retailer_api') detail=`Observed through ${updater}.`;
+      else if(channel==='public_feed') detail=`Read from ${updater}.`;
+      else if(channel==='community_observation') detail=`Observed and submitted through ${updater}.`;
+      else if(channel==='provision_inference') detail=`Derived by Provision from available evidence; not directly asserted by the source.`;
+      else detail=`Update route: ${updater}.`;
+      return {channel,label,updater,detail};
+    }
     async function loadLiveProvision(showToast=false){
       const status=$('#liveNetworkStatus');if(status)status.textContent='Network syncing';
       try{
@@ -742,13 +763,41 @@
         for(const row of (rows||[])){
           const foodKey=ensureLiveFood(row);
           const placeKey=`live-${row.source_slug}`;
-          const lat=Number(row.latitude),lng=Number(row.longitude);
-          if(!PLACES[placeKey]) PLACES[placeKey]={name:row.source_name,short:row.source_name,lat:Number.isFinite(lat)?lat:state.user.lat,lng:Number.isFinite(lng)?lng:state.user.lng,type:row.source_type,categories:[foodKey],icon:(row.source_name||'P')[0].toUpperCase(),source:'#',sourceLabel:'Provision Network live source'};
-          else if(!PLACES[placeKey].categories.includes(foodKey)) PLACES[placeKey].categories.push(foodKey);
+          const hasLat=row.latitude!==null&&row.latitude!==undefined&&row.latitude!=='';
+          const hasLng=row.longitude!==null&&row.longitude!==undefined&&row.longitude!=='';
+          const lat=hasLat?Number(row.latitude):null,lng=hasLng?Number(row.longitude):null;
+          const hasLocation=Number.isFinite(lat)&&Number.isFinite(lng);
+          if(!PLACES[placeKey]) PLACES[placeKey]={name:row.source_name,short:row.source_name,lat:hasLocation?lat:state.user.lat,lng:hasLocation?lng:state.user.lng,hasLocation,type:row.source_type,categories:[foodKey],icon:(row.source_name||'P')[0].toUpperCase(),source:row.source_contact_url||'#',sourceLabel:'Provision Network source'};
+          else{
+            if(!PLACES[placeKey].categories.includes(foodKey)) PLACES[placeKey].categories.push(foodKey);
+            if(hasLocation){PLACES[placeKey].lat=lat;PLACES[placeKey].lng=lng;PLACES[placeKey].hasLocation=true}
+            if(row.source_contact_url){PLACES[placeKey].source=row.source_contact_url;PLACES[placeKey].sourceLabel=row.source_name}
+          }
           LIVE_PLACE_KEYS.add(placeKey);
-          const distance=Number.isFinite(lat)&&Number.isFinite(lng)?haversineMiles(state.user,{lat,lng}):0;
           const confidence=evidenceConfidence(row);
-          OFFERS.push({id:`live-${row.id}`,food:foodKey,place:placeKey,product:row.food_name,origin:`${row.source_name}${row.locality?' · '+row.locality:''}`,originKm:Math.max(.1,Math.round(distance*1.609*10)/10),chain:row.source_type==='producer'?1:row.source_type==='market'?2:3,freshness:assertionFreshness(row),confidence,method:row.source_type==='producer'?90:72,local:clamp(Math.round(100-distance*3.5),20,100),coverage:placeCoverage(row.source_type),price:row.price==null?0:Number(row.price),priceUnit:row.price_basis==='per_kg'?'kg':row.price_basis==='per_litre'?'litre':row.unit,priceScore:livePriceScore(row.price),event:`${row.state.replace('_',' ')} · verified ${new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}).format(new Date(row.asserted_at))}`,eventShort:`LIVE · ${row.state.replace('_',' ')}`,evidence:`${row.truth_class} · strength ${row.evidence_strength}/5`,availability:row.valid_until?`Valid until ${new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(row.valid_until))}`:'Current network state',tags:['LIVE NETWORK',row.state.replace('_',' '),row.truth_class],notes:`Live Provision Network record. ${row.note||'No additional note.'} Evidence class: ${row.truth_class}; strength ${row.evidence_strength}/5. The freshness score here reflects recency of the assertion unless a stronger food-specific freshness event is available.`,live:true,latestEventId:row.latest_event_id});
+          const strength=Number(row.evidence_strength)||0;
+          const provenance=provenanceFromRow(row);
+          const truth=String(row.truth_class||'declared').toLowerCase();
+          const stateLabel=String(row.state||'available').replaceAll('_',' ');
+          const sellerContext=[row.locality,row.postcode].filter(Boolean).join(' · ')||'source location pending';
+          const localScore=hasLocation?clamp(Math.round(100-haversineMiles(state.user,{lat,lng})*3.5),20,100):50;
+          OFFERS.push({
+            id:`live-${row.id}`,food:foodKey,place:placeKey,product:row.food_name,
+            origin:sellerContext,originKm:null,originKnown:false,chain:row.source_type==='producer'?1:row.source_type==='market'?2:3,
+            freshness:assertionFreshness(row),confidence,evidenceStrength:strength,truthClass:truth,
+            method:row.source_type==='producer'?90:72,local:localScore,coverage:placeCoverage(row.source_type),
+            price:row.price==null?0:Number(row.price),priceUnit:row.price_basis==='per_kg'?'kg':row.price_basis==='per_litre'?'litre':(row.unit==='item'?'each':row.unit),
+            priceScore:livePriceScore(row.price),
+            event:`${stateLabel} · ${truth} ${timeLondon(row.asserted_at)}`,
+            eventShort:`LIVE · ${stateLabel}`,
+            evidence:`${truth} · ${strength}/5`,
+            availability:row.valid_until?`Valid until ${new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(row.valid_until))}`:'Current network state',
+            tags:['LIVE NETWORK',stateLabel,truth,provenance.label],
+            notes:`Live Provision Network record. ${row.note||'No additional note.'} Evidence class: ${truth}; strength ${strength}/5. The freshness score reflects recency of the assertion unless a stronger food-specific freshness event is available.`,
+            live:true,latestEventId:row.latest_event_id,assertedAt:row.asserted_at,
+            provenanceChannel:provenance.channel,provenanceLabel:provenance.label,provenanceDetail:provenance.detail,provenanceUpdater:provenance.updater,
+            updateAuthenticated:row.update_authenticated!==false,hasSellerLocation:hasLocation
+          });
         }
         if(status)status.textContent=`LIVE · ${(rows||[]).length} offer${(rows||[]).length===1?'':'s'}`;
         renderAll();
@@ -756,7 +805,10 @@
       }catch(e){console.error(e);if(status)status.textContent='Network unavailable';}
     }
     function subscribeLiveProvision(){
-      return sb.channel('provision-current-offer').on('postgres_changes',{event:'*',schema:'public',table:'current_offer'},()=>loadLiveProvision()).subscribe();
+      return sb.channel('provision-live-network')
+        .on('postgres_changes',{event:'*',schema:'public',table:'current_offer'},()=>loadLiveProvision())
+        .on('postgres_changes',{event:'*',schema:'public',table:'source'},()=>loadLiveProvision())
+        .subscribe();
     }
 
     const state = {
@@ -783,9 +835,11 @@
       return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
     }
 
+    function placeHasLocation(place){return place&&place.hasLocation!==false&&Number.isFinite(place.lat)&&Number.isFinite(place.lng)}
+    function offerDistance(offer){const p=placeOf(offer);return placeHasLocation(p)?round1(haversineMiles(state.user,p)):null}
     function distanceScore(offer) {
-      const d = haversineMiles(state.user, placeOf(offer));
-      return clamp(100 - d*4.4, 15, 100);
+      const d=offerDistance(offer);
+      return d==null?50:clamp(100 - d*4.4, 15, 100);
     }
 
     function weights() {
@@ -805,7 +859,7 @@
     }
 
     function ranked(food=state.food) {
-      return foodOffers(food).map(o => ({...o, score:scoreOffer(o), distance:round1(haversineMiles(state.user, placeOf(o)))})).sort((a,b)=>b.score-a.score || b.confidence-a.confidence);
+      return foodOffers(food).map(o => ({...o, score:scoreOffer(o), distance:offerDistance(o)})).sort((a,b)=>b.score-a.score || b.confidence-a.confidence);
     }
 
     function freshnessLabel(score) {
@@ -838,7 +892,7 @@
       $('#heroCopy').textContent=f.copy;
       $('#foodSearch').placeholder=`Try ${Object.keys(FOOD).filter(k=>k!==state.food).slice(0,4).join(', ')}…`;
       $('#metricBest').textContent=`${best.score} / 100`;
-      $('#metricDistance').textContent=`${best.distance} mi`;
+      $('#metricDistance').textContent=best.distance==null?'Distance unknown':`${best.distance} mi`;
       $('#metricAge').textContent=best.event;
       $('#metricConfidence').textContent=`${best.confidence}%`;
       $('#suggestions').innerHTML=Object.keys(FOOD).filter(k=>k!==state.food).slice(0,5).map(k=>`<button class="suggestion" data-food="${k}">${FOOD[k].label}</button>`).join('<span style="color:#39423b">·</span>');
@@ -861,7 +915,7 @@
       const home=mapXY(state.user.lat,state.user.lng);
       $('#mapHome').style.left=home.x+'%'; $('#mapHome').style.top=home.y+'%';
       $('#mapRings').innerHTML=[90,180,280].map(s=>`<div class="map-home-ring" style="left:${home.x}%;top:${home.y}%;width:${s}px;height:${s}px"></div>`).join('');
-      const visibleIds = state.mapView==='network' ? Object.keys(PLACES) : [...new Set(foodOffers(state.food).map(o=>o.place))];
+      const visibleIds = (state.mapView==='network' ? Object.keys(PLACES) : [...new Set(foodOffers(state.food).map(o=>o.place))]).filter(id=>placeHasLocation(PLACES[id]));
       $('#mapPins').innerHTML=visibleIds.map(id=>{
         const p=PLACES[id], pos=mapXY(p.lat,p.lng);
         const active=state.selectedOffer && state.selectedOffer.place===id;
@@ -902,8 +956,8 @@
             </div>
           </div>
           <div class="offer-side">
-            <div><div class="offer-price">£${o.price.toFixed(2)} <span style="color:var(--muted);font-weight:500">/ ${o.priceUnit}</span></div><div class="offer-distance">${o.distance} mi from you</div></div>
-            <div class="confidence"><span>${o.confidence}% evidence</span><span class="confidence-bar"><i style="width:${o.confidence}%"></i></span></div>
+            <div><div class="offer-price">£${o.price.toFixed(2)} <span style="color:var(--muted);font-weight:500">/ ${o.priceUnit}</span></div><div class="offer-distance">${o.distance==null?'Distance unknown':`${o.distance} mi from you`}</div></div>
+            <div class="confidence"><span>${o.live?`${o.truthClass} · ${o.evidenceStrength}/5`:`${o.confidence}% evidence`}</span><span class="confidence-bar"><i style="width:${o.live?Math.max(8,o.evidenceStrength*20):o.confidence}%"></i></span></div>
           </div>
         </article>`;
       }).join('');
@@ -998,7 +1052,7 @@
     }
 
     function serializeOffer(o) {
-      return {id:o.id,food:o.food,product:o.product,retailer:placeOf(o).name,origin:o.origin,distance_from_user_miles:o.distance ?? round1(haversineMiles(state.user,placeOf(o))),score:o.score ?? scoreOffer(o),freshness_event:o.event,chain_steps:o.chain,evidence_confidence:o.confidence,price_gbp:o.price,price_unit:o.priceUnit,availability:o.availability};
+      return {id:o.id,food:o.food,product:o.product,retailer:placeOf(o).name,origin:o.origin,distance_from_user_miles:o.distance ?? (placeHasLocation(placeOf(o))?round1(haversineMiles(state.user,placeOf(o))):null),score:o.score ?? scoreOffer(o),freshness_event:o.event,chain_steps:o.chain,evidence_confidence:o.confidence,price_gbp:o.price,price_unit:o.priceUnit,availability:o.availability};
     }
 
     function renderAgent() {
@@ -1009,7 +1063,7 @@
 
     function renderSources() {
       const ids=[...new Set(foodOffers(state.food).map(o=>o.place))].slice(0,5);
-      $('#sourceList').innerHTML=ids.map(id=>`<a class="source-link" href="${PLACES[id].source}" target="_blank" rel="noopener"><span>${PLACES[id].sourceLabel}</span><span>↗</span></a>`).join('');
+      $('#sourceList').innerHTML=ids.map(id=>{const p=PLACES[id];return p.source&&p.source!=='#'?`<a class="source-link" href="${p.source}" target="_blank" rel="noopener"><span>${p.sourceLabel}</span><span>↗</span></a>`:`<div class="source-link"><span>${p.sourceLabel}</span><span>LIVE</span></div>`}).join('');
     }
 
     function renderRoutes() {
@@ -1027,16 +1081,23 @@
     function renderDetails() {
       const o=state.selectedOffer || ranked()[0], p=placeOf(o);
       $('#detailsTitle').textContent=o.product;
+      const distanceText=o.distance==null?'Unknown':`${o.distance} mi`;
+      const originText=o.originKm==null?'Not yet resolved':`${o.originKm} km`;
+      const evidenceFact=o.live?`${o.evidenceStrength}/5`:`${o.confidence}%`;
+      const evidenceLabel=o.live?'Evidence strength':'Evidence confidence';
+      const sourceAction=p.source&&p.source!=='#'?`<a class="solid-btn" style="display:inline-block;text-decoration:none;margin-top:14px;padding:9px 12px" href="${p.source}" target="_blank" rel="noopener">Open public source ↗</a>`:'';
+      const provenanceCard=o.live?`<div class="detail-card"><h4>How Provision knows</h4><p class="rail-copy"><strong>${o.provenanceLabel}</strong> · ${o.provenanceDetail} Recorded ${timeLondon(o.assertedAt)}. Evidence class: ${o.truthClass}; strength ${o.evidenceStrength}/5.</p><div class="offer-tags" style="margin-top:14px"><span class="tag">${o.provenanceLabel}</span><span class="tag">${o.truthClass}</span><span class="tag">${o.evidenceStrength}/5 evidence</span></div></div>`:'';
       $('#detailsContent').innerHTML=`
         <div class="detail-card"><h4>Lot facts</h4><div class="fact-grid">
-          <div class="fact"><b>${o.event}</b><span>Freshness event</span></div>
-          <div class="fact"><b>${o.distance} mi</b><span>From you</span></div>
-          <div class="fact"><b>${o.originKm} km</b><span>Origin to seller</span></div>
+          <div class="fact"><b>${o.event}</b><span>${o.live?'Current state':'Freshness event'}</span></div>
+          <div class="fact"><b>${distanceText}</b><span>From you</span></div>
+          <div class="fact"><b>${originText}</b><span>Origin to seller</span></div>
           <div class="fact"><b>${o.chain}</b><span>Chain steps</span></div>
-          <div class="fact"><b>${o.confidence}%</b><span>Evidence confidence</span></div>
+          <div class="fact"><b>${evidenceFact}</b><span>${evidenceLabel}</span></div>
           <div class="fact"><b>£${o.price.toFixed(2)}</b><span>Per ${o.priceUnit}</span></div>
         </div></div>
-        <div class="detail-card"><h4>Evidence read</h4><p class="rail-copy">${o.notes}</p><div class="offer-tags" style="margin-top:14px">${o.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div><a class="solid-btn" style="display:inline-block;text-decoration:none;margin-top:14px;padding:9px 12px" href="${p.source}" target="_blank" rel="noopener">Open public source ↗</a></div>`;
+        ${provenanceCard}
+        <div class="detail-card"><h4>Evidence read</h4><p class="rail-copy">${o.notes}</p><div class="offer-tags" style="margin-top:14px">${o.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>${sourceAction}</div>`;
     }
 
     function modeLabel(){ return {fresh:'freshest possible',oneTrip:'fewest trips',value:'best value',local:'local resilience'}[state.mode] + (state.abundance?' · abundance':''); }
