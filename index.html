@@ -409,7 +409,11 @@
       .best-strip { padding:0 12px 12px; }
       .offers { padding:12px; }
     }
-  </style>
+  
+/* Network expansion 04 */
+.commitment-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.commitment-cell{border:1px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.025)}.commitment-cell b{display:block;font-size:14px}.commitment-cell span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}.detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.detail-actions button{flex:1;min-width:130px}.evidence-list{display:grid;gap:9px;margin-top:12px}.evidence-record{border:1px solid var(--line);border-radius:14px;padding:11px;background:rgba(255,255,255,.025)}.evidence-record strong{display:block;font-size:11px}.evidence-record small{display:block;color:var(--muted);font-size:9px;margin-top:4px;line-height:1.4}.evidence-record img{display:block;width:100%;max-height:280px;object-fit:cover;border-radius:11px;margin-top:9px;border:1px solid var(--line)}.evidence-record a{display:inline-block;margin-top:9px;color:var(--accent);font-size:10px}.action-overlay{position:fixed;inset:0;z-index:95;background:rgba(7,8,7,.78);backdrop-filter:blur(16px);display:none;place-items:center;padding:16px}.action-overlay.open{display:grid}.action-card{width:min(520px,100%);max-height:min(760px,92dvh);overflow:auto;border:1px solid var(--line2);background:linear-gradient(180deg,#172019,#0e120f);border-radius:26px;padding:22px;box-shadow:0 30px 100px rgba(0,0,0,.55)}.action-card h3{font-size:28px;letter-spacing:-.05em;margin:7px 0 7px}.action-card p{color:var(--muted);font-size:11px;line-height:1.55}.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.action-grid .wide{grid-column:1/-1}.action-grid label{font-size:8px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);display:grid;gap:5px}.action-grid input,.action-grid select,.action-grid textarea{width:100%;border:1px solid var(--line);background:#0d120e;color:var(--ink);border-radius:12px;padding:11px}.action-grid textarea{min-height:72px;resize:vertical}.action-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.action-close{border:1px solid var(--line);background:transparent;color:var(--ink);width:34px;height:34px;border-radius:50%;cursor:pointer}.privacy-note{font-size:9px;color:var(--muted);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:12px}.claim-state{display:inline-flex;border:1px solid rgba(154,205,159,.24);color:#b8e1bc;border-radius:999px;padding:6px 8px;font-size:8px;text-transform:uppercase;letter-spacing:.09em}.claim-state.requested{color:#ead29a;border-color:rgba(234,210,154,.25)}.location-unresolved{color:var(--muted);font-style:italic}.top-account{border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 10px;font-size:9px;color:var(--muted);cursor:pointer}
+@media(max-width:600px){.action-grid{grid-template-columns:1fr}.action-grid .wide{grid-column:auto}.commitment-strip{grid-template-columns:1fr 1fr}.commitment-strip .commitment-cell:first-child{grid-column:1/-1}}
+</style>
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -548,7 +552,7 @@
             <h2 id="offersHeading">Tomatoes near Leeds</h2>
             <p id="offersSubhead">A score without evidence confidence is not allowed to look precise.</p>
           </div>
-          <button class="ghost-btn" id="addCurrent">+ Basket</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost-btn" id="demandCurrent">I want this</button><button class="ghost-btn" id="addCurrent">+ Basket</button></div>
         </div>
         <div class="offers" id="offers"></div>
         <div class="disclosure"><strong>Pilot truth:</strong> venue identities and declared sourcing claims are grounded in public sources; lot dates, prices and exact availability are sample signals used to demonstrate the operating model. Provision visibly downgrades unverified data rather than hiding uncertainty.</div>
@@ -614,6 +618,10 @@
     <div class="details-content" id="detailsContent"></div>
   </section>
 
+
+  <div class="action-overlay" id="actionOverlay" aria-hidden="true">
+    <section class="action-card"><div class="action-head"><div><div class="eyebrow" id="actionEyebrow">Provision commitment</div><h3 id="actionTitle">Continue</h3></div><button class="action-close" id="actionClose" type="button">×</button></div><div id="actionBody"></div></section>
+  </div>
   <div class="toast" id="toast">Copied</div>
 
   <script type="application/ld+json">
@@ -635,7 +643,10 @@
 
     const SUPABASE_URL='https://aumcpvepxeytfiqhsmwf.supabase.co';
     const SUPABASE_KEY='sb_publishable_nwtiv-Qi5tdIZ-cVDRI7BQ_-lzY8paJ';
-    const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    let consumerSession=null;
+    let consumerClaims=new Map(), consumerDemandSignals=[], publicEvidenceByEvent=new Map(), networkFoods=[];
+    let pendingAction=null;
 
     const FOOD = {
       tomatoes: {label:'Tomatoes', singular:'tomatoes', icon:'●', color:'#ff6a50', season:'Yorkshire peak now', copy:'Resolve harvest recency, production distance and cold-chain steps before comparing the convenience premium.'},
@@ -783,7 +794,7 @@
           const localScore=hasLocation?clamp(Math.round(100-haversineMiles(state.user,{lat,lng})*3.5),20,100):50;
           OFFERS.push({
             id:`live-${row.id}`,food:foodKey,place:placeKey,product:row.food_name,
-            origin:sellerContext,originKm:null,originKnown:false,chain:row.source_type==='producer'?1:row.source_type==='market'?2:3,
+            origin:sellerContext,originKm:null,originKnown:false,chain:null,
             freshness:assertionFreshness(row),confidence,evidenceStrength:strength,truthClass:truth,
             method:row.source_type==='producer'?90:72,local:localScore,coverage:placeCoverage(row.source_type),
             price:row.price==null?0:Number(row.price),priceUnit:row.price_basis==='per_kg'?'kg':row.price_basis==='per_litre'?'litre':(row.unit==='item'?'each':row.unit),
@@ -794,23 +805,44 @@
             availability:row.valid_until?`Valid until ${new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(row.valid_until))}`:'Current network state',
             tags:['LIVE NETWORK',stateLabel,truth,provenance.label],
             notes:`Live Provision Network record. ${row.note||'No additional note.'} Evidence class: ${truth}; strength ${strength}/5. The freshness score reflects recency of the assertion unless a stronger food-specific freshness event is available.`,
-            live:true,latestEventId:row.latest_event_id,assertedAt:row.asserted_at,
+            live:true,currentOfferId:row.id,foodId:row.food_id,sourceId:row.source_id,latestEventId:row.latest_event_id,assertedAt:row.asserted_at,validUntil:row.valid_until,reservedQuantity:Number(row.reserved_quantity||0),acceptedClaimCount:Number(row.accepted_claim_count||0),availableToClaim:Number(row.available_to_claim??row.quantity??0),physicalQuantity:Number(row.quantity||0),unitRaw:row.unit,
             provenanceChannel:provenance.channel,provenanceLabel:provenance.label,provenanceDetail:provenance.detail,provenanceUpdater:provenance.updater,
             updateAuthenticated:row.update_authenticated!==false,hasSellerLocation:hasLocation
           });
         }
+        if(state.selectedOffer?.live){const fresh=OFFERS.find(o=>o.id===state.selectedOffer.id);state.selectedOffer=fresh||null}
+        if(!OFFERS.some(o=>o.food===state.food)){state.food='tomatoes';state.selectedOffer=null}
+        await loadPublicEvidence((rows||[]).map(r=>r.latest_event_id));
+        if(consumerSession)await loadConsumerClaims();
         if(status)status.textContent=`LIVE · ${(rows||[]).length} offer${(rows||[]).length===1?'':'s'}`;
         renderAll();
-        if(showToast)toast('Live network refreshed');
+        if(showToast)showToast('Live network refreshed');
       }catch(e){console.error(e);if(status)status.textContent='Network unavailable';}
     }
     function subscribeLiveProvision(){
       return sb.channel('provision-live-network')
         .on('postgres_changes',{event:'*',schema:'public',table:'current_offer'},()=>loadLiveProvision())
         .on('postgres_changes',{event:'*',schema:'public',table:'source'},()=>loadLiveProvision())
+        .on('postgres_changes',{event:'*',schema:'public',table:'evidence'},()=>loadLiveProvision())
         .subscribe();
     }
 
+    async function loadNetworkFoods(){const {data,error}=await sb.from('food').select('id,slug,common_name,category,default_unit,aliases').eq('active',true);if(!error)networkFoods=data||[]}
+    async function loadPublicEvidence(eventIds=[]){publicEvidenceByEvent=new Map();const ids=[...new Set(eventIds.filter(Boolean))];if(!ids.length)return;const {data:rows,error}=await sb.from('public_evidence').select('*').in('provision_event_id',ids).order('observed_at',{ascending:false});if(error){console.warn('Evidence load',error);return}for(const e of rows||[]){let url=e.external_url||null;if(e.storage_path){try{const {data,error:signErr}=await sb.storage.from('provision-evidence').createSignedUrl(e.storage_path,3600);if(!signErr)url=data?.signedUrl||null}catch(_){}}const record={...e,url};if(!publicEvidenceByEvent.has(e.provision_event_id))publicEvidenceByEvent.set(e.provision_event_id,[]);publicEvidenceByEvent.get(e.provision_event_id).push(record)}}
+    async function loadConsumerClaims(){consumerClaims=new Map();if(!consumerSession)return;const {data,error}=await sb.from('claim').select('*').eq('claimant_user_id',consumerSession.user.id).order('created_at',{ascending:false});if(error){console.warn(error);return}for(const c of data||[]){if(!consumerClaims.has(c.current_offer_id)||['requested','accepted'].includes(c.status))consumerClaims.set(c.current_offer_id,c)}}
+    async function loadConsumerDemand(){consumerDemandSignals=[];if(!consumerSession)return;const {data,error}=await sb.from('demand_signal').select('id,food_id,desired_quantity,unit,cadence,max_price,active,valid_until,created_at,updated_at').eq('user_id',consumerSession.user.id).eq('active',true).order('updated_at',{ascending:false});if(error){console.warn(error);return}consumerDemandSignals=data||[]}
+    function selectedClaim(o){return o?.currentOfferId?consumerClaims.get(o.currentOfferId)||null:null}
+    function demandFoodForCurrent(){const selected=state.selectedOffer&&state.selectedOffer.food===state.food?state.selectedOffer:null;if(selected?.live&&selected.foodId)return networkFoods.find(f=>f.id===selected.foodId)||null;const map={tomatoes:'tomato',potatoes:'potato',eggs:'eggs',bread:'bread',courgettes:'courgette'};const slug=map[state.food];return slug?networkFoods.find(f=>f.slug===slug)||null:null}
+    function openAction(title,eyebrow,html){$('#actionTitle').textContent=title;$('#actionEyebrow').textContent=eyebrow;$('#actionBody').innerHTML=html;$('#actionOverlay').classList.add('open');$('#actionOverlay').setAttribute('aria-hidden','false')}
+    function closeAction(){$('#actionOverlay').classList.remove('open');$('#actionOverlay').setAttribute('aria-hidden','true');pendingAction=null}
+    function authPanel(reason){pendingAction=reason;openAction('Connect to continue','Provision account',`<p>Browsing Provision stays open. An account is only needed when you create a commitment or a private demand signal.</p><div class="action-grid"><label class="wide">Email<input id="consumerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label></div><div class="detail-actions"><button class="solid-btn" id="consumerMagic" type="button">Send magic link</button></div><div class="privacy-note">Your email is never exposed to the Source. Supabase Auth establishes the account behind your claim or demand signal.</div><div id="consumerAuthMsg" class="privacy-note" style="display:none"></div>`);$('#consumerMagic').onclick=async()=>{const email=$('#consumerEmail').value.trim();if(!email)return;const btn=$('#consumerMagic');btn.disabled=true;const redirect=location.origin+location.pathname+location.search;const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:redirect}});btn.disabled=false;const m=$('#consumerAuthMsg');m.style.display='block';m.textContent=error?error.message:'Magic link sent. Open it on this device and return to Provision.'}}
+    function openClaim(o){if(!o?.live)return;if(!consumerSession){authPanel({type:'claim',offerId:o.id});return}const c=selectedClaim(o);if(c&&['requested','accepted'].includes(c.status)){openAction(c.status==='accepted'?'This food is held':'Claim requested','Provision commitment',`<p>${c.status==='accepted'?'The Source accepted this hold.':'The Source has not accepted this request yet, so it does not reserve stock.'}</p><div class="commitment-strip"><div class="commitment-cell"><b>${safeText(c.quantity)} ${safeText(o.priceUnit)}</b><span>your claim</span></div><div class="commitment-cell"><b>${safeText(c.status)}</b><span>status</span></div></div><div class="detail-actions"><button class="ghost-btn" id="cancelClaimBtn">Cancel claim</button></div>`);$('#cancelClaimBtn').onclick=()=>cancelClaim(c.id);return}const available=Math.max(0,Number(o.availableToClaim??o.physicalQuantity??0));openAction('Claim / hold','Provision commitment',`<p>Request a soft hold from ${safeText(placeOf(o).name)}. Nothing is reserved until the Source accepts it.</p><div class="commitment-strip"><div class="commitment-cell"><b>${safeText(available)} ${safeText(o.priceUnit)}</b><span>available to claim</span></div><div class="commitment-cell"><b>${safeText(o.reservedQuantity||0)}</b><span>already committed</span></div><div class="commitment-cell"><b>${safeText(o.physicalQuantity||0)}</b><span>physical quantity</span></div></div><div class="action-grid"><label>Quantity<input id="claimQty" inputmode="decimal" value="1"></label><label>Hold window<select id="claimWindow"><option value="2">2 hours</option><option value="4" selected>4 hours</option><option value="8">8 hours</option></select></label><label class="wide">Collection note (optional)<textarea id="claimNote" placeholder="e.g. I can collect after 17:30"></textarea></label></div><div class="detail-actions"><button class="solid-btn" id="requestClaimBtn" ${available<=0?'disabled':''}>Request hold</button></div><div class="privacy-note">A request does not reduce public availability. Availability falls only if the Source accepts the claim.</div>`);$('#requestClaimBtn').onclick=()=>requestClaim(o)}
+    async function requestClaim(o){const qty=Number($('#claimQty').value);if(!(qty>0)){showToast('Enter a quantity');return}const hours=Number($('#claimWindow').value)||4;let expiry=new Date(Date.now()+hours*3600000);if(o.validUntil&&new Date(o.validUntil)<expiry)expiry=new Date(o.validUntil);const {error}=await sb.rpc('request_claim',{p_current_offer_id:o.currentOfferId,p_quantity:qty,p_expires_at:expiry.toISOString(),p_collection_window_start:null,p_collection_window_end:null,p_note:$('#claimNote').value.trim()||null});if(error){showToast(error.message);return}await loadConsumerClaims();closeAction();await loadLiveProvision();showToast('Claim requested · awaiting Source')}
+    async function cancelClaim(id){const {error}=await sb.rpc('cancel_claim',{p_claim_id:id});if(error){showToast(error.message);return}await loadConsumerClaims();closeAction();await loadLiveProvision();showToast('Claim cancelled')}
+    function openDemand(){const food=demandFoodForCurrent();if(!food){showToast('This category is not in the live demand ontology yet');return}if(!consumerSession){authPanel({type:'demand',foodId:food.id});return}const existing=consumerDemandSignals.filter(d=>d.food_id===food.id);openAction(`I want ${food.common_name}`,'Private demand signal',`<p>Tell the network what you would reliably take if it existed nearby. Sources see only thresholded aggregates, never your identity or exact coordinates.</p>${existing.length?`<div class="evidence-list">${existing.map(d=>`<div class="evidence-record"><strong>Active · ${safeText(d.desired_quantity)} ${safeText(d.unit)} · ${safeText(d.cadence)}</strong><small>${d.max_price!=null?'maximum £'+Number(d.max_price).toFixed(2)+' · ':''}private household signal</small><div class="detail-actions"><button class="ghost-btn" data-cancel-demand="${d.id}">Remove signal</button></div></div>`).join('')}</div>`:''}<div class="action-grid"><label>Quantity<input id="demandQty" inputmode="decimal" value="${existing[0]?safeText(existing[0].desired_quantity):'1'}"></label><label>How counted<input id="demandUnit" value="${safeText(existing[0]?.unit||food.default_unit||'item')}"></label><label>Cadence<select id="demandCadence"><option value="once">Once</option><option value="weekly" selected>Weekly</option><option value="daily">Daily</option><option value="fortnightly">Fortnightly</option><option value="monthly">Monthly</option></select></label><label>Maximum price (optional)<input id="demandPrice" inputmode="decimal" placeholder="£" value="${existing[0]?.max_price??''}"></label></div><div class="detail-actions"><button class="solid-btn" id="saveDemandBtn">${existing.length?'Update / add signal':'Signal demand'}</button></div><div class="privacy-note">Stored privately at your location. A Source receives a 3 / 5 / 10 km aggregate only after at least three distinct households contribute to that food and band.</div>`);if(existing[0])$('#demandCadence').value=existing[0].cadence||'weekly';$('#saveDemandBtn').onclick=()=>saveDemand(food);$$('[data-cancel-demand]').forEach(b=>b.onclick=()=>cancelDemand(b.dataset.cancelDemand))}
+    async function saveDemand(food){const qty=Number($('#demandQty').value),price=$('#demandPrice').value.trim()===''?null:Number($('#demandPrice').value);if(!(qty>0)){showToast('Enter a quantity');return}const {error}=await sb.rpc('upsert_demand_signal',{p_food_id:food.id,p_quantity:qty,p_unit:$('#demandUnit').value.trim()||food.default_unit||'item',p_cadence:$('#demandCadence').value,p_max_price:Number.isFinite(price)?price:null,p_longitude:Number(state.user.lng),p_latitude:Number(state.user.lat),p_valid_until:null});if(error){showToast(error.message);return}await loadConsumerDemand();closeAction();showToast('Demand signal added')}
+    async function cancelDemand(id){const {error}=await sb.rpc('cancel_demand_signal',{p_demand_signal_id:id});if(error){showToast(error.message);return}await loadConsumerDemand();closeAction();showToast('Demand signal removed')}
+    function safeText(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
     const state = {
       food: 'tomatoes',
       mode: 'fresh',
@@ -931,7 +963,7 @@
       const list=ranked(), best=list[0];
       const convergence=[...list].sort((a,b)=>b.coverage-a.coverage || b.score-a.score)[0];
       $('#bestTitle').textContent=placeOf(best).name;
-      $('#bestMeta').textContent=`${best.event} · ${best.chain} chain step${best.chain>1?'s':''} · ${best.evidence}`;
+      $('#bestMeta').textContent=best.live?`${best.event} · ${best.provenanceLabel} · ${best.evidence}`:`${best.event} · ${best.chain} chain step${best.chain>1?'s':''} · ${best.evidence}`;
       $('#bestScore').textContent=best.score;
       $('#convergenceTitle').textContent=placeOf(convergence).name;
       $('#convergenceMeta').textContent=`${convergence.coverage}% basket coverage · ${convergence.eventShort}`;
@@ -951,12 +983,12 @@
             <div class="offer-place">${p.name} · ${o.origin}</div>
             <div class="offer-tags">
               <span class="tag strong">${o.eventShort}</span>
-              <span class="tag">${o.chain} chain step${o.chain>1?'s':''}</span>
+              ${o.live?'':`<span class="tag">${o.chain} chain step${o.chain>1?'s':''}</span>`}
               ${o.tags.slice(0,2).map(t=>`<span class="tag">${t}</span>`).join('')}
             </div>
           </div>
           <div class="offer-side">
-            <div><div class="offer-price">£${o.price.toFixed(2)} <span style="color:var(--muted);font-weight:500">/ ${o.priceUnit}</span></div><div class="offer-distance">${o.distance==null?'Distance unknown':`${o.distance} mi from you`}</div></div>
+            <div><div class="offer-price">£${o.price.toFixed(2)} <span style="color:var(--muted);font-weight:500">/ ${o.priceUnit}</span></div><div class="offer-distance">${o.distance==null?'Location not yet resolved':`${o.distance} mi from you`}</div></div>
             <div class="confidence"><span>${o.live?`${o.truthClass} · ${o.evidenceStrength}/5`:`${o.confidence}% evidence`}</span><span class="confidence-bar"><i style="width:${o.live?Math.max(8,o.evidenceStrength*20):o.confidence}%"></i></span></div>
           </div>
         </article>`;
@@ -1081,23 +1113,30 @@
     function renderDetails() {
       const o=state.selectedOffer || ranked()[0], p=placeOf(o);
       $('#detailsTitle').textContent=o.product;
-      const distanceText=o.distance==null?'Unknown':`${o.distance} mi`;
+      const distanceText=o.distance==null?'Location not yet resolved':`${o.distance} mi`;
       const originText=o.originKm==null?'Not yet resolved':`${o.originKm} km`;
       const evidenceFact=o.live?`${o.evidenceStrength}/5`:`${o.confidence}%`;
       const evidenceLabel=o.live?'Evidence strength':'Evidence confidence';
       const sourceAction=p.source&&p.source!=='#'?`<a class="solid-btn" style="display:inline-block;text-decoration:none;margin-top:14px;padding:9px 12px" href="${p.source}" target="_blank" rel="noopener">Open public source ↗</a>`:'';
       const provenanceCard=o.live?`<div class="detail-card"><h4>How Provision knows</h4><p class="rail-copy"><strong>${o.provenanceLabel}</strong> · ${o.provenanceDetail} Recorded ${timeLondon(o.assertedAt)}. Evidence class: ${o.truthClass}; strength ${o.evidenceStrength}/5.</p><div class="offer-tags" style="margin-top:14px"><span class="tag">${o.provenanceLabel}</span><span class="tag">${o.truthClass}</span><span class="tag">${o.evidenceStrength}/5 evidence</span></div></div>`:'';
+      const chainFact=o.live?'':`<div class="fact"><b>${o.chain}</b><span>Chain steps</span></div>`;
+      const liveAvailability=o.live?`<div class="detail-card"><h4>Commitment state</h4><div class="commitment-strip"><div class="commitment-cell"><b>${safeText(o.availableToClaim)} ${safeText(o.priceUnit)}</b><span>available to claim</span></div><div class="commitment-cell"><b>${safeText(o.reservedQuantity)}</b><span>accepted / held</span></div><div class="commitment-cell"><b>${safeText(o.physicalQuantity)}</b><span>physical quantity</span></div></div><div class="detail-actions"><button class="solid-btn" id="claimOfferBtn" ${Number(o.availableToClaim)<=0?'disabled':''}>${selectedClaim(o)&&['requested','accepted'].includes(selectedClaim(o).status)?(selectedClaim(o).status==='accepted'?'View hold':'View request'):'Claim / hold'}</button><button class="ghost-btn" id="demandOfferBtn">I want this regularly</button></div>${selectedClaim(o)?`<div style="margin-top:10px"><span class="claim-state ${safeText(selectedClaim(o).status)}">your claim · ${safeText(selectedClaim(o).status)}</span></div>`:''}</div>`:'';
+      const evidenceRows=o.live?(publicEvidenceByEvent.get(o.latestEventId)||[]):[];
+      const evidenceHtml=o.live?`<div class="detail-card"><h4>Evidence</h4>${evidenceRows.length?`<div class="evidence-list">${evidenceRows.map(e=>`<div class="evidence-record"><strong>${safeText(String(e.evidence_type||'evidence').replaceAll('_',' '))}${e.temporally_current===false?' · expired':''}</strong><small>${safeText(e.caption||'Attached supporting evidence')} · observed ${safeText(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(e.observed_at)))}</small>${e.url&&e.evidence_type==='photo'?`<img src="${e.url}" alt="${safeText(e.caption||'Provision evidence')}" loading="lazy">`:''}${e.url&&e.evidence_type!=='photo'?`<a href="${e.url}" target="_blank" rel="noopener">Open evidence ↗</a>`:''}</div>`).join('')}</div>`:'<p class="rail-copy">No corroborating evidence yet. This live state currently rests on its stated evidence class and provenance.</p>'}</div>`:`<div class="detail-card"><h4>Evidence read</h4><p class="rail-copy">${o.notes}</p><div class="offer-tags" style="margin-top:14px">${o.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>${sourceAction}</div>`;
       $('#detailsContent').innerHTML=`
         <div class="detail-card"><h4>Lot facts</h4><div class="fact-grid">
           <div class="fact"><b>${o.event}</b><span>${o.live?'Current state':'Freshness event'}</span></div>
-          <div class="fact"><b>${distanceText}</b><span>From you</span></div>
+          <div class="fact"><b class="${o.distance==null?'location-unresolved':''}">${distanceText}</b><span>From you</span></div>
           <div class="fact"><b>${originText}</b><span>Origin to seller</span></div>
-          <div class="fact"><b>${o.chain}</b><span>Chain steps</span></div>
+          ${chainFact}
           <div class="fact"><b>${evidenceFact}</b><span>${evidenceLabel}</span></div>
-          <div class="fact"><b>£${o.price.toFixed(2)}</b><span>Per ${o.priceUnit}</span></div>
+          <div class="fact"><b>${o.price>0?'£'+o.price.toFixed(2):'Not stated'}</b><span>${o.price>0?'Per '+o.priceUnit:'Price'}</span></div>
         </div></div>
+        ${liveAvailability}
         ${provenanceCard}
-        <div class="detail-card"><h4>Evidence read</h4><p class="rail-copy">${o.notes}</p><div class="offer-tags" style="margin-top:14px">${o.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>${sourceAction}</div>`;
+        ${evidenceHtml}
+        ${o.live&&sourceAction?`<div class="detail-card"><h4>Source</h4><p class="rail-copy">${safeText(o.notes)}</p>${sourceAction}</div>`:''}`;
+      if(o.live){$('#claimOfferBtn')?.addEventListener('click',()=>openClaim(o));$('#demandOfferBtn')?.addEventListener('click',openDemand)}
     }
 
     function modeLabel(){ return {fresh:'freshest possible',oneTrip:'fewest trips',value:'best value',local:'local resilience'}[state.mode] + (state.abundance?' · abundance':''); }
@@ -1183,14 +1222,14 @@
       $('#abundanceSwitch').addEventListener('click',()=>{state.abundance=!state.abundance;persist();renderAll();showToast(state.abundance?'Price removed from ranking':'Price restored to ranking');});
       $$('.pref-btn').forEach(b=>b.addEventListener('click',()=>{state.mode=b.dataset.mode;persist();renderAll();}));
       $$('.segmented button').forEach(b=>b.addEventListener('click',()=>{state.mapView=b.dataset.mapView;$$('.segmented button').forEach(x=>x.classList.toggle('active',x===b));renderMap();}));
-      $('#addCurrent').addEventListener('click',addCurrentToBasket);
+      $('#addCurrent').addEventListener('click',addCurrentToBasket);$('#demandCurrent').addEventListener('click',openDemand);$('#actionClose').addEventListener('click',closeAction);$('#actionOverlay').addEventListener('click',e=>{if(e.target===$('#actionOverlay'))closeAction()});
       $('#addBasketTop').addEventListener('click',addCurrentToBasket);
       $('#agentTopBtn').addEventListener('click',()=>$('#agentSection').scrollIntoView({behavior:'smooth',block:'center'}));
       $('#copyJson').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(JSON.stringify(snapshot(),null,2));showToast('JSON copied');}catch(e){showToast('Copy unavailable');}});
       $('#downloadJson').addEventListener('click',exportJson);
       $$('[data-close-drawer]').forEach(b=>b.addEventListener('click',()=>closeDrawer(b.dataset.closeDrawer)));
       $$('.mobile-nav button').forEach(b=>b.addEventListener('click',()=>{$$('.mobile-nav button').forEach(x=>x.classList.toggle('active',x===b));$('#'+b.dataset.mobileTarget).scrollIntoView({behavior:'smooth',block:'start'});}));
-      document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer('routeDrawer');closeDrawer('detailsDrawer');}});
+      document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer('routeDrawer');closeDrawer('detailsDrawer');closeAction();}});
     }
 
 
@@ -1232,7 +1271,10 @@
       showToast('Provision installed');
     });
 
+    let consumerClaimChannel=null;function subscribeConsumerClaims(){if(consumerClaimChannel||!consumerSession)return;consumerClaimChannel=sb.channel('provision-consumer-claims').on('postgres_changes',{event:'*',schema:'public',table:'claim'},async()=>{await loadConsumerClaims();renderDetails();renderOffers()}).subscribe()}
+    async function initConsumerAuth(){const {data:{session}}=await sb.auth.getSession();consumerSession=session;if(session){await Promise.all([loadConsumerClaims(),loadConsumerDemand()]);subscribeConsumerClaims()}sb.auth.onAuthStateChange(async(_event,newSession)=>{consumerSession=newSession;if(newSession){await Promise.all([loadConsumerClaims(),loadConsumerDemand()]);subscribeConsumerClaims();await loadLiveProvision();showToast('Provision account connected')}else{consumerClaims=new Map();consumerDemandSignals=[];if(consumerClaimChannel){sb.removeChannel(consumerClaimChannel);consumerClaimChannel=null}renderAll()}})}
     restore();
+    loadNetworkFoods().then(initConsumerAuth).catch(console.error);
     initEvents();
     updateClock(); setInterval(updateClock,1000);
     renderAll();
@@ -1240,7 +1282,7 @@
     subscribeLiveProvision();
 
     window.PROVISION_API = {
-      version:'1.0.0-live-leeds',
+      version:'5.0.0-network-expansion',
       query:(food=state.food,mode=state.mode)=>{const oldF=state.food,oldM=state.mode;state.food=FOOD[food]?food:oldF;state.mode=['fresh','oneTrip','value','local'].includes(mode)?mode:oldM;const result=snapshot();state.food=oldF;state.mode=oldM;return result;},
       snapshot,
       refreshLive:()=>loadLiveProvision(true),
