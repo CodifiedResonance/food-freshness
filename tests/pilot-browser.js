@@ -1,4 +1,4 @@
-// Local-only UI harness. Vite exposes mountForTest only when the ignored QA configuration selects pilot.
+// Local-only UI harness. The preview bundler exposes mountForTest only when the ignored QA configuration selects pilot.
 import {mountForTest} from '../staging/src/main.js';
 import {claimFixture,ids,now,end} from './claim-fixture.js';
 const f=await claimFixture(indexedDB);const requested=await f.request();
